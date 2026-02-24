@@ -217,22 +217,22 @@
 
   async function loadStats() {
     const [{ count: rc }, { count: vc }, { count: ac }] = await Promise.all([
-      supabase.from('receipts').select('*', { count: 'exact', head: true }),
-      supabase.from('cash_vouchers').select('*', { count: 'exact', head: true }),
-      supabase.from('attachments').select('*', { count: 'exact', head: true })
+      supabaseClient.from('receipts').select('*', { count: 'exact', head: true }),
+      supabaseClient.from('cash_vouchers').select('*', { count: 'exact', head: true }),
+      supabaseClient.from('attachments').select('*', { count: 'exact', head: true })
     ]);
     document.getElementById('stat-receipts').textContent = rc ?? 0;
     document.getElementById('stat-vouchers').textContent = vc ?? 0;
     document.getElementById('stat-attachments').textContent = ac ?? 0;
 
     // Total receipt amount
-    const { data: totals } = await supabase.from('receipts').select('total');
+    const { data: totals } = await supabaseClient.from('receipts').select('total');
     const sum = (totals || []).reduce((s, r) => s + (r.total || 0), 0);
     document.getElementById('stat-total').textContent = '₹' + sum.toLocaleString('en-IN', { minimumFractionDigits: 2 });
   }
 
   async function loadRecentReceipts() {
-    const { data } = await supabase.from('receipts').select('*').order('created_at', { ascending: false }).limit(5);
+    const { data } = await supabaseClient.from('receipts').select('*').order('created_at', { ascending: false }).limit(5);
     const el = document.getElementById('recent-receipts');
     if (!data || data.length === 0) return;
 
@@ -248,7 +248,7 @@
   }
 
   async function loadRecentVouchers() {
-    const { data } = await supabase.from('cash_vouchers').select('*').order('created_at', { ascending: false }).limit(5);
+    const { data } = await supabaseClient.from('cash_vouchers').select('*').order('created_at', { ascending: false }).limit(5);
     const el = document.getElementById('recent-vouchers');
     if (!data || data.length === 0) return;
 

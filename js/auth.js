@@ -5,7 +5,8 @@
 
 // ── Guard: redirect to login if not authenticated ─────────────────────────
 async function requireAuth() {
-  const { data: { session } } = await supabase.auth.getSession();
+  if (!supabaseClient) { console.error('Supabase client not initialised'); return null; }
+  const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) {
     window.location.href = 'index.html';
     return null;
@@ -27,7 +28,8 @@ function populateSidebarUser(session) {
 
 // ── Sign in with Google ───────────────────────────────────────────────────
 async function signInWithGoogle() {
-  const { error } = await supabase.auth.signInWithOAuth({
+  if (!supabaseClient) { showToast('Authentication service unavailable', 'error'); return; }
+  const { error } = await supabaseClient.auth.signInWithOAuth({
     provider: 'google',
     options: {
       redirectTo: new URL('dashboard.html', window.location.href).href
@@ -38,6 +40,7 @@ async function signInWithGoogle() {
 
 // ── Sign out ──────────────────────────────────────────────────────────────
 async function signOut() {
-  await supabase.auth.signOut();
+  if (!supabaseClient) { console.error('Supabase client not initialised'); return; }
+  await supabaseClient.auth.signOut();
   window.location.href = 'index.html';
 }

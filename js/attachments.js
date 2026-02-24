@@ -19,7 +19,7 @@ async function initAttachments() {
 
 // ── Fetch all attachment records ──────────────────────────────────────────
 async function fetchAttachments(search = '') {
-  let query = supabase.from('attachments').select('*').order('created_at', { ascending: false });
+  let query = supabaseClient.from('attachments').select('*').order('created_at', { ascending: false });
   if (search) query = query.ilike('name', `%${search}%`);
   const { data, error } = await query;
   if (error) { showToast('Failed to load attachments', 'error'); return; }
@@ -71,7 +71,7 @@ async function uploadFile(file) {
 
   const filePath = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
 
-  const { error: storageError } = await supabase.storage
+  const { error: storageError } = await supabaseClient.storage
     .from(BUCKET)
     .upload(filePath, file, { upsert: false });
 
@@ -82,10 +82,10 @@ async function uploadFile(file) {
   }
 
   // Get public URL
-  const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
+  const { data: { publicUrl } } = supabaseClient.storage.from(BUCKET).getPublicUrl(filePath);
 
   // Save metadata to DB
-  const { error: dbError } = await supabase.from('attachments').insert([{
+  const { error: dbError } = await supabaseClient.from('attachments').insert([{
     name:       file.name,
     file_path:  filePath,
     file_size:  file.size,
@@ -157,10 +157,10 @@ async function deleteAttachment(id, filePath) {
   showLoading(true);
 
   // Remove from storage
-  await supabase.storage.from(BUCKET).remove([filePath]);
+  await supabaseClient.storage.from(BUCKET).remove([filePath]);
 
   // Remove DB record
-  const { error } = await supabase.from('attachments').delete().eq('id', id);
+  const { error } = await supabaseClient.from('attachments').delete().eq('id', id);
   showLoading(false);
 
   if (error) { showToast('Delete failed', 'error'); return; }

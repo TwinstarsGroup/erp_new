@@ -27,7 +27,7 @@ async function initReceipts() {
 
 // ── Fetch all receipts ────────────────────────────────────────────────────
 async function fetchReceipts(search = '') {
-  let query = supabase.from('receipts').select('*').order('created_at', { ascending: false });
+  let query = supabaseClient.from('receipts').select('*').order('created_at', { ascending: false });
   if (search) query = query.ilike('customer_name', `%${search}%`);
   const { data, error } = await query;
   if (error) { showToast('Failed to load receipts', 'error'); return; }
@@ -77,7 +77,7 @@ function renderReceiptList() {
 
 // ── Set next receipt number ───────────────────────────────────────────────
 async function setNextReceiptNumber() {
-  const { count } = await supabase.from('receipts').select('*', { count: 'exact', head: true });
+  const { count } = await supabaseClient.from('receipts').select('*', { count: 'exact', head: true });
   nextNum = (count || 0) + 1;
   document.getElementById('receipt-number').value = generateRef('RCP', nextNum);
 }
@@ -182,9 +182,9 @@ async function saveReceipt() {
   showLoading(true);
   let error;
   if (editingId) {
-    ({ error } = await supabase.from('receipts').update(payload).eq('id', editingId));
+    ({ error } = await supabaseClient.from('receipts').update(payload).eq('id', editingId));
   } else {
-    ({ error } = await supabase.from('receipts').insert([payload]));
+    ({ error } = await supabaseClient.from('receipts').insert([payload]));
   }
   showLoading(false);
 
@@ -209,7 +209,7 @@ function resetForm() {
 // ── Delete receipt ────────────────────────────────────────────────────────
 async function deleteReceipt(id) {
   if (!confirmAction('Delete this receipt? This cannot be undone.')) return;
-  const { error } = await supabase.from('receipts').delete().eq('id', id);
+  const { error } = await supabaseClient.from('receipts').delete().eq('id', id);
   if (error) { showToast('Delete failed', 'error'); return; }
   showToast('Receipt deleted', 'success');
   fetchReceipts();
@@ -217,7 +217,7 @@ async function deleteReceipt(id) {
 
 // ── View receipt modal ────────────────────────────────────────────────────
 async function openReceiptById(id) {
-  const { data } = await supabase.from('receipts').select('*').eq('id', id).single();
+  const { data } = await supabaseClient.from('receipts').select('*').eq('id', id).single();
   if (data) renderReceiptModal(data);
 }
 

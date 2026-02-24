@@ -32,7 +32,7 @@ async function initVouchers() {
 
 // ── Fetch vouchers ────────────────────────────────────────────────────────
 async function fetchVouchers(search = '') {
-  let query = supabase.from('cash_vouchers').select('*').order('created_at', { ascending: false });
+  let query = supabaseClient.from('cash_vouchers').select('*').order('created_at', { ascending: false });
   if (search) query = query.ilike('payee', `%${search}%`);
   const { data, error } = await query;
   if (error) { showToast('Failed to load vouchers', 'error'); return; }
@@ -81,7 +81,7 @@ function renderVoucherList() {
 
 // ── Next number ───────────────────────────────────────────────────────────
 async function setNextVoucherNumber() {
-  const { count } = await supabase.from('cash_vouchers').select('*', { count: 'exact', head: true });
+  const { count } = await supabaseClient.from('cash_vouchers').select('*', { count: 'exact', head: true });
   nextVoucherNum = (count || 0) + 1;
   document.getElementById('voucher-number').value = generateRef('CVR', nextVoucherNum);
 }
@@ -119,9 +119,9 @@ async function saveVoucher() {
   showLoading(true);
   let error;
   if (editingVoucherId) {
-    ({ error } = await supabase.from('cash_vouchers').update(payload).eq('id', editingVoucherId));
+    ({ error } = await supabaseClient.from('cash_vouchers').update(payload).eq('id', editingVoucherId));
   } else {
-    ({ error } = await supabase.from('cash_vouchers').insert([payload]));
+    ({ error } = await supabaseClient.from('cash_vouchers').insert([payload]));
   }
   showLoading(false);
 
@@ -144,7 +144,7 @@ function resetVoucherForm() {
 // ── Delete ────────────────────────────────────────────────────────────────
 async function deleteVoucher(id) {
   if (!confirmAction('Delete this voucher? This cannot be undone.')) return;
-  const { error } = await supabase.from('cash_vouchers').delete().eq('id', id);
+  const { error } = await supabaseClient.from('cash_vouchers').delete().eq('id', id);
   if (error) { showToast('Delete failed', 'error'); return; }
   showToast('Voucher deleted', 'success');
   fetchVouchers();
@@ -152,7 +152,7 @@ async function deleteVoucher(id) {
 
 // ── View modal ────────────────────────────────────────────────────────────
 async function openVoucherById(id) {
-  const { data } = await supabase.from('cash_vouchers').select('*').eq('id', id).single();
+  const { data } = await supabaseClient.from('cash_vouchers').select('*').eq('id', id).single();
   if (data) renderVoucherModal(data);
 }
 
