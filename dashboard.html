@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — ERP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-name">ERP System</div>
+      <div class="brand-sub">Administration Console</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <a class="nav-link" data-page="dashboard.html" href="dashboard.html">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </a>
+
+      <div class="nav-section-label">Finance</div>
+      <a class="nav-link" data-page="receipts.html" href="receipts.html">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Receipts
+      </a>
+      <a class="nav-link" data-page="vouchers.html" href="vouchers.html">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Cash Vouchers
+      </a>
+
+      <div class="nav-section-label">Storage</div>
+      <a class="nav-link" data-page="attachments.html" href="attachments.html">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        Attachments
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <img id="user-avatar" src="https://ui-avatars.com/api/?name=Admin&background=2563eb&color=fff" alt="User" />
+        <div>
+          <div class="user-name" id="user-name">Admin</div>
+          <div class="user-role" id="user-email">Loading…</div>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="signOut()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-title">Dashboard</div>
+      <div class="topbar-actions">
+        <span id="current-date" style="font-size:.85rem;color:#64748b;"></span>
+      </div>
+    </header>
+
+    <main class="page-body">
+
+      <!-- Stats -->
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon blue">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div>
+            <div class="stat-value" id="stat-receipts">—</div>
+            <div class="stat-label">Total Receipts</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon green">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          </div>
+          <div>
+            <div class="stat-value" id="stat-vouchers">—</div>
+            <div class="stat-label">Cash Vouchers</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon orange">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          </div>
+          <div>
+            <div class="stat-value" id="stat-attachments">—</div>
+            <div class="stat-label">Attachments</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon purple">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div>
+            <div class="stat-value" id="stat-total">—</div>
+            <div class="stat-label">Total Receipts (₹)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;margin-bottom:28px;">
+        <div class="card" style="padding:24px;">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+            <div class="stat-icon blue">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            </div>
+            <div>
+              <div style="font-weight:700;font-size:.95rem;">New Receipt</div>
+              <div style="font-size:.8rem;color:#64748b;">Generate a sales receipt</div>
+            </div>
+          </div>
+          <a href="receipts.html" class="btn btn-primary" style="width:100%;justify-content:center;">Create Receipt</a>
+        </div>
+
+        <div class="card" style="padding:24px;">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+            <div class="stat-icon green">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            </div>
+            <div>
+              <div style="font-weight:700;font-size:.95rem;">New Voucher</div>
+              <div style="font-size:.8rem;color:#64748b;">Issue a cash payment voucher</div>
+            </div>
+          </div>
+          <a href="vouchers.html" class="btn btn-success" style="width:100%;justify-content:center;">Create Voucher</a>
+        </div>
+
+        <div class="card" style="padding:24px;">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+            <div class="stat-icon orange">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            </div>
+            <div>
+              <div style="font-weight:700;font-size:.95rem;">Upload Files</div>
+              <div style="font-size:.8rem;color:#64748b;">Store supporting documents</div>
+            </div>
+          </div>
+          <a href="attachments.html" class="btn btn-outline" style="width:100%;justify-content:center;">Manage Files</a>
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+        <!-- Recent Receipts -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Recent Receipts</div>
+            <a href="receipts.html" class="btn btn-sm btn-outline">View All</a>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div id="recent-receipts">
+              <div class="empty-state" style="padding:32px 24px;">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <p>No receipts yet</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Vouchers -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Recent Vouchers</div>
+            <a href="vouchers.html" class="btn btn-sm btn-outline">View All</a>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div id="recent-vouchers">
+              <div class="empty-state" style="padding:32px 24px;">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                <p>No vouchers yet</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/auth.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    const session = await requireAuth();
+    if (!session) return;
+    populateSidebarUser(session);
+    setActiveNav();
+
+    document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-IN', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    loadStats();
+    loadRecentReceipts();
+    loadRecentVouchers();
+  });
+
+  async function loadStats() {
+    const [{ count: rc }, { count: vc }, { count: ac }] = await Promise.all([
+      supabase.from('receipts').select('*', { count: 'exact', head: true }),
+      supabase.from('cash_vouchers').select('*', { count: 'exact', head: true }),
+      supabase.from('attachments').select('*', { count: 'exact', head: true })
+    ]);
+    document.getElementById('stat-receipts').textContent = rc ?? 0;
+    document.getElementById('stat-vouchers').textContent = vc ?? 0;
+    document.getElementById('stat-attachments').textContent = ac ?? 0;
+
+    // Total receipt amount
+    const { data: totals } = await supabase.from('receipts').select('total');
+    const sum = (totals || []).reduce((s, r) => s + (r.total || 0), 0);
+    document.getElementById('stat-total').textContent = '₹' + sum.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+  }
+
+  async function loadRecentReceipts() {
+    const { data } = await supabase.from('receipts').select('*').order('created_at', { ascending: false }).limit(5);
+    const el = document.getElementById('recent-receipts');
+    if (!data || data.length === 0) return;
+
+    el.innerHTML = `<div class="table-container"><table>
+      <thead><tr><th>Receipt #</th><th>Customer</th><th>Date</th><th>Total</th></tr></thead>
+      <tbody>${data.map(r => `<tr>
+        <td><a href="receipts.html?id=${r.id}" style="color:#2563eb;font-weight:600;">${r.receipt_number}</a></td>
+        <td>${r.customer_name}</td>
+        <td>${formatDate(r.date)}</td>
+        <td style="font-weight:600;">${formatCurrency(r.total)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+
+  async function loadRecentVouchers() {
+    const { data } = await supabase.from('cash_vouchers').select('*').order('created_at', { ascending: false }).limit(5);
+    const el = document.getElementById('recent-vouchers');
+    if (!data || data.length === 0) return;
+
+    el.innerHTML = `<div class="table-container"><table>
+      <thead><tr><th>Voucher #</th><th>Payee</th><th>Date</th><th>Amount</th></tr></thead>
+      <tbody>${data.map(v => `<tr>
+        <td><a href="vouchers.html?id=${v.id}" style="color:#2563eb;font-weight:600;">${v.voucher_number}</a></td>
+        <td>${v.payee}</td>
+        <td>${formatDate(v.date)}</td>
+        <td style="font-weight:600;">${formatCurrency(v.amount)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+</script>
+</body>
+</html>
