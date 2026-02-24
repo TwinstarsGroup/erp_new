@@ -134,3 +134,59 @@ function setActiveNav() {
     link.classList.toggle('active', link.dataset.page === page);
   });
 }
+
+// ── HTML escape helper ────────────────────────────────────────────────────
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// ── Inline attachment upload helper ──────────────────────────────────────
+async function uploadAttachment(file) {
+  const MAX_SIZE = 50 * 1024 * 1024;
+  if (file.size > MAX_SIZE) {
+    showToast(`${file.name}: file too large (max 50 MB)`, 'warning');
+    return null;
+  }
+
+  const filePath = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+
+  const { error: storageError } = await supabaseClient.storage
+    .from('attachments')
+    .upload(filePath, file, { upsert: false });
+
+  if (storageError) {
+    showToast('Upload failed: ' + storageError.message, 'error');
+    return null;
+  }
+
+  const { data: { publicUrl } } = supabaseClient.storage.from('attachments').getPublicUrl(filePath);
+
+  const { data, error: dbError } = await supabaseClient.from('attachments').insert([{
+    name:       file.name,
+    file_path:  filePath,
+    file_size:  file.size,
+    mime_type:  file.type,
+    public_url: publicUrl
+  }]).select().single();
+
+  if (dbError) {
+    showToast('Metadata save failed: ' + dbError.message, 'error');
+    return null;
+  }
+
+  return data;
+}
+
+// ── Delete attachment helper ──────────────────────────────────────────────
+async function deleteAttachmentById(id, filePath) {
+  const { error: storageError } = await supabaseClient.storage.from('attachments').remove([filePath]);
+  if (storageError) console.error('Storage delete failed:', storageError.message);
+
+  const { error: dbError } = await supabaseClient.from('attachments').delete().eq('id', id);
+  if (dbError) console.error('DB delete failed:', dbError.message);
+}

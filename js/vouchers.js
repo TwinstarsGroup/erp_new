@@ -5,6 +5,7 @@
 let vouchers = [];
 let editingVoucherId = null;
 let nextVoucherNum   = 1;
+let voucherAttachments = [];
 
 // ── Initialise ────────────────────────────────────────────────────────────
 async function initVouchers() {
@@ -16,6 +17,7 @@ async function initVouchers() {
   document.getElementById('voucher-date').value = todayISO();
   await fetchVouchers();
   await setNextVoucherNumber();
+  initVoucherAttachments();
 
   // Watch amount field → update words
   const amtInput = document.getElementById('voucher-amount');
@@ -135,9 +137,11 @@ async function saveVoucher() {
 // ── Reset form ────────────────────────────────────────────────────────────
 function resetVoucherForm() {
   editingVoucherId = null;
+  voucherAttachments = [];
   document.getElementById('voucher-form').reset();
   document.getElementById('voucher-date').value = todayISO();
   document.getElementById('amount-words').textContent = '—';
+  renderVoucherAttachments();
   setNextVoucherNumber();
 }
 
@@ -232,3 +236,49 @@ function printVoucher() {
 
 function showModal(id) { document.getElementById(id).style.display = 'flex'; }
 function hideModal(id) { document.getElementById(id).style.display = 'none'; }
+
+// ── Inline attachment handling ────────────────────────────────────────────
+function initVoucherAttachments() {
+  const input = document.getElementById('voucher-file-input');
+  if (!input) return;
+  input.addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    e.target.value = '';
+    for (const file of files) {
+      showLoading(true);
+      const att = await uploadAttachment(file);
+      showLoading(false);
+      if (att) {
+        voucherAttachments.push(att);
+        renderVoucherAttachments();
+        showToast(`${file.name} attached`, 'success');
+      }
+    }
+  });
+}
+
+function renderVoucherAttachments() {
+  const list = document.getElementById('voucher-attachment-list');
+  if (!list) return;
+  if (!voucherAttachments.length) { list.innerHTML = ''; return; }
+  list.innerHTML = voucherAttachments.map(a => {
+    const ext = (a.name || '').split('.').pop().toUpperCase();
+    const badgeCls = getFileBadgeClass(a.name);
+    return `<div style="display:inline-flex;align-items:center;gap:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;font-size:.8rem;">
+      <span class="file-badge ${badgeCls}">${ext}</span>
+      <a href="${escapeHtml(a.public_url)}" target="_blank" style="color:#2563eb;font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(a.name)}">${escapeHtml(a.name)}</a>
+      <button type="button" class="btn-close" onclick="removeVoucherAttachment('${escapeHtml(a.id)}','${escapeHtml(a.file_path)}')" title="Remove">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>`;
+  }).join('');
+}
+
+async function removeVoucherAttachment(id, filePath) {
+  showLoading(true);
+  await deleteAttachmentById(id, filePath);
+  showLoading(false);
+  voucherAttachments = voucherAttachments.filter(a => a.id !== id);
+  renderVoucherAttachments();
+  showToast('Attachment removed', 'success');
+}

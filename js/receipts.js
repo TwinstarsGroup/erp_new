@@ -7,6 +7,8 @@ let receiptItems = [];
 let editingId   = null;
 let receipts    = [];
 let nextNum     = 1;
+let currentReceiptView  = null;
+let receiptAttachments  = [];
 
 // ── Initialise ────────────────────────────────────────────────────────────
 async function initReceipts() {
@@ -19,6 +21,7 @@ async function initReceipts() {
 
   await fetchReceipts();
   await setNextReceiptNumber();
+  initReceiptAttachments();
 
   // If URL has ?id=... open that receipt for viewing
   const params = new URLSearchParams(window.location.search);
@@ -199,10 +202,12 @@ async function saveReceipt() {
 function resetForm() {
   editingId = null;
   receiptItems = [];
+  receiptAttachments = [];
   document.getElementById('receipt-form').reset();
   document.getElementById('receipt-date').value = todayISO();
   renderItems();
   recalcTotals();
+  renderReceiptAttachments();
   setNextReceiptNumber();
 }
 
@@ -227,6 +232,7 @@ function openReceiptView(id) {
 }
 
 function renderReceiptModal(r) {
+  currentReceiptView = r;
   const itemRows = (r.items || []).map((it, i) => `
     <tr>
       <td>${i + 1}</td>
@@ -244,7 +250,7 @@ function renderReceiptModal(r) {
           <div style="font-size:.9rem;color:#64748b;margin-top:4px;"># ${r.receipt_number}</div>
         </div>
         <div style="text-align:right;">
-          <div style="font-size:1.1rem;font-weight:700;color:#2563eb;">ERP System</div>
+          <img src="images/logo.svg" alt="ERP System" style="height:36px;margin-bottom:4px;" />
           <div style="font-size:.8rem;color:#64748b;">Date: ${formatDate(r.date)}</div>
         </div>
       </div>
@@ -309,4 +315,218 @@ function showModal(id) {
 }
 function hideModal(id) {
   document.getElementById(id).style.display = 'none';
+}
+
+// ── Inline attachment handling ────────────────────────────────────────────
+function initReceiptAttachments() {
+  const input = document.getElementById('receipt-file-input');
+  if (!input) return;
+  input.addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    e.target.value = '';
+    for (const file of files) {
+      showLoading(true);
+      const att = await uploadAttachment(file);
+      showLoading(false);
+      if (att) {
+        receiptAttachments.push(att);
+        renderReceiptAttachments();
+        showToast(`${file.name} attached`, 'success');
+      }
+    }
+  });
+}
+
+function renderReceiptAttachments() {
+  const list = document.getElementById('receipt-attachment-list');
+  if (!list) return;
+  if (!receiptAttachments.length) { list.innerHTML = ''; return; }
+  list.innerHTML = receiptAttachments.map(a => {
+    const ext = (a.name || '').split('.').pop().toUpperCase();
+    const badgeCls = getFileBadgeClass(a.name);
+    return `<div style="display:inline-flex;align-items:center;gap:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;font-size:.8rem;">
+      <span class="file-badge ${badgeCls}">${ext}</span>
+      <a href="${escapeHtml(a.public_url)}" target="_blank" style="color:#2563eb;font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(a.name)}">${escapeHtml(a.name)}</a>
+      <button type="button" class="btn-close" onclick="removeReceiptAttachment('${escapeHtml(a.id)}','${escapeHtml(a.file_path)}')" title="Remove">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>`;
+  }).join('');
+}
+
+async function removeReceiptAttachment(id, filePath) {
+  showLoading(true);
+  await deleteAttachmentById(id, filePath);
+  showLoading(false);
+  receiptAttachments = receiptAttachments.filter(a => a.id !== id);
+  renderReceiptAttachments();
+  showToast('Attachment removed', 'success');
+}
+
+// ── PDF download helpers ──────────────────────────────────────────────────
+function _buildWatermarkDataURL() {
+  const c = document.createElement('canvas');
+  c.width = 300; c.height = 300;
+  const ctx = c.getContext('2d');
+  ctx.globalAlpha = 0.3;
+  ctx.fillStyle = '#2563eb';
+  const r = 24, x = 10, y = 10, w = 280, h = 280;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 80px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('ERP', 150, 120);
+  ctx.font = '36px Arial';
+  ctx.fillText('System', 150, 190);
+  ctx.globalAlpha = 1.0;
+  return c.toDataURL('image/png');
+}
+
+function _fmtPDF(amount) {
+  return 'Rs.' + (amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function _datastamp() {
+  const n = new Date();
+  return n.getFullYear() + '-' +
+    String(n.getMonth() + 1).padStart(2, '0') + '-' +
+    String(n.getDate()).padStart(2, '0') + '_' +
+    String(n.getHours()).padStart(2, '0') +
+    String(n.getMinutes()).padStart(2, '0');
+}
+
+function downloadReceiptPDF(r) {
+  if (!r) return;
+  if (!window.jspdf) { showToast('PDF library not loaded', 'error'); return; }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 40;
+  const contentW = pageW - 2 * margin;
+
+  // ── Watermark ──────────────────────────────────────────
+  const wmDataURL = _buildWatermarkDataURL();
+  doc.addImage(wmDataURL, 'PNG', (pageW - 200) / 2, (pageH - 200) / 2, 200, 200);
+
+  // ── Header bar ─────────────────────────────────────────
+  doc.setFillColor(37, 99, 235);
+  doc.rect(margin, margin, contentW, 2, 'F');
+
+  doc.setFontSize(22); doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 41, 59);
+  doc.text('RECEIPT', margin, margin + 32);
+
+  doc.setFontSize(11); doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text(`# ${r.receipt_number}`, margin, margin + 48);
+
+  doc.setFontSize(13); doc.setFont('helvetica', 'bold');
+  doc.setTextColor(37, 99, 235);
+  doc.text('ERP System', pageW - margin, margin + 32, { align: 'right' });
+
+  doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Date: ${formatDate(r.date)}`, pageW - margin, margin + 48, { align: 'right' });
+
+  // ── Bill To ────────────────────────────────────────────
+  let y = margin + 76;
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+  doc.setTextColor(148, 163, 184);
+  doc.text('BILL TO', margin, y); y += 15;
+
+  doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 41, 59);
+  doc.text(r.customer_name, margin, y); y += 15;
+
+  doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  if (r.customer_phone) { doc.text(r.customer_phone, margin, y); y += 13; }
+  if (r.customer_email) { doc.text(r.customer_email, margin, y); y += 13; }
+
+  y += 14;
+
+  // ── Items Table ────────────────────────────────────────
+  const colWidths = [30, contentW - 270, 50, 90, 90];
+  const colX = [margin];
+  colWidths.slice(0, -1).forEach((w, i) => colX.push(colX[i] + w));
+
+  // Header row
+  doc.setFillColor(241, 245, 249);
+  doc.rect(margin, y, contentW, 22, 'F');
+  doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+  doc.setTextColor(100, 116, 139);
+  ['#', 'Description', 'Qty', 'Rate', 'Amount'].forEach((h, i) => {
+    const align = i >= 2 ? 'right' : 'left';
+    const xPos = i >= 2 ? colX[i] + colWidths[i] - 4 : colX[i] + 4;
+    doc.text(h, xPos, y + 14, { align });
+  });
+  y += 22;
+
+  // Data rows
+  (r.items || []).forEach((it, i) => {
+    if (i % 2 === 1) {
+      doc.setFillColor(248, 250, 252);
+      doc.rect(margin, y, contentW, 20, 'F');
+    }
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+    doc.setTextColor(30, 41, 59);
+    doc.text(String(i + 1), colX[0] + 4, y + 13);
+    doc.text(String(it.desc || ''), colX[1] + 4, y + 13, { maxWidth: colWidths[1] - 8 });
+    doc.text(String(it.qty), colX[2] + colWidths[2] - 4, y + 13, { align: 'right' });
+    doc.text(_fmtPDF(it.rate), colX[3] + colWidths[3] - 4, y + 13, { align: 'right' });
+    doc.text(_fmtPDF(it.qty * it.rate), colX[4] + colWidths[4] - 4, y + 13, { align: 'right' });
+    y += 20;
+  });
+
+  // ── Totals ─────────────────────────────────────────────
+  y += 12;
+  const totX = pageW - margin - 200;
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+
+  doc.text('Subtotal', totX, y);
+  doc.text(_fmtPDF(r.subtotal), pageW - margin, y, { align: 'right' }); y += 16;
+
+  doc.text(`Tax (${r.tax_percent || 0}%)`, totX, y);
+  doc.text(_fmtPDF(r.tax_amount), pageW - margin, y, { align: 'right' }); y += 12;
+
+  doc.setDrawColor(226, 232, 240);
+  doc.line(totX - 5, y, pageW - margin, y); y += 12;
+
+  doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 41, 59);
+  doc.text('Total', totX, y);
+  doc.text(_fmtPDF(r.total), pageW - margin, y, { align: 'right' }); y += 20;
+
+  // ── Notes ──────────────────────────────────────────────
+  if (r.notes) {
+    y += 8;
+    doc.setFillColor(248, 250, 252); doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(margin, y, contentW, 28, 4, 4, 'FD');
+    doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text('Notes:', margin + 10, y + 12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(String(r.notes), margin + 10 + doc.getTextWidth('Notes:') + 4, y + 12,
+      { maxWidth: contentW - 30 });
+    y += 28;
+  }
+
+  // ── Footer ──────────────────────────────────────────────
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+  doc.setTextColor(148, 163, 184);
+  doc.text('Thank you for your business.', pageW / 2, pageH - 40, { align: 'center' });
+
+  // ── Save ───────────────────────────────────────────────
+  doc.save(`${r.customer_name} ${_datastamp()}.pdf`);
 }
