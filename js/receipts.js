@@ -250,7 +250,7 @@ function renderReceiptModal(r) {
           <div style="font-size:.9rem;color:#64748b;margin-top:4px;"># ${r.receipt_number}</div>
         </div>
         <div style="text-align:right;">
-          <img src="images/logo.svg" alt="ERP System" style="height:36px;margin-bottom:4px;" />
+          <img src="images/logo200.png" alt="ERP System" style="height:36px;margin-bottom:4px;" />
           <div style="font-size:.8rem;color:#64748b;">Date: ${formatDate(r.date)}</div>
         </div>
       </div>
