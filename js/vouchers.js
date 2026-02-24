@@ -6,6 +6,7 @@ let vouchers = [];
 let editingVoucherId = null;
 let nextVoucherNum   = 1;
 let voucherAttachments = [];
+let currentVoucherView = null;
 
 // ── Initialise ────────────────────────────────────────────────────────────
 async function initVouchers() {
@@ -166,6 +167,7 @@ function openVoucherView(id) {
 }
 
 function renderVoucherModal(v) {
+  currentVoucherView = v;
   document.getElementById('voucher-modal-content').innerHTML = `
     <div class="print-doc" id="printable-voucher" style="background:#fff;padding:32px;font-family:inherit;">
 
@@ -232,6 +234,156 @@ function printVoucher() {
     </head><body>${content}</body></html>`);
   win.document.close();
   win.print();
+}
+
+// ── Voucher PDF download ──────────────────────────────────────────────────
+function _voucherWatermarkDataURL() {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = 200; c.height = 200;
+      const ctx = c.getContext('2d');
+      ctx.globalAlpha = 0.15;
+      ctx.drawImage(img, 0, 0, 200, 200);
+      resolve(c.toDataURL('image/png'));
+    };
+    img.onerror = () => {
+      console.error('Failed to load watermark image: images/logo200.png');
+      resolve(document.createElement('canvas').toDataURL('image/png'));
+    };
+    img.src = 'images/logo200.png';
+  });
+}
+
+function _voucherFmt(amount) {
+  return 'Rs.' + (amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function _voucherDatestamp() {
+  const n = new Date();
+  return n.getFullYear() + '-' +
+    String(n.getMonth() + 1).padStart(2, '0') + '-' +
+    String(n.getDate()).padStart(2, '0') + '_' +
+    String(n.getHours()).padStart(2, '0') +
+    String(n.getMinutes()).padStart(2, '0');
+}
+
+async function downloadVoucherPDF(v) {
+  if (!v) return;
+  if (!window.jspdf) { showToast('PDF library not loaded', 'error'); return; }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 40;
+  const contentW = pageW - 2 * margin;
+
+  // ── Watermark ──────────────────────────────────────────
+  const wmDataURL = await _voucherWatermarkDataURL();
+  doc.addImage(wmDataURL, 'PNG', (pageW - 200) / 2, (pageH - 200) / 2, 200, 200);
+
+  // ── Header bar ─────────────────────────────────────────
+  doc.setFillColor(22, 163, 74);
+  doc.rect(margin, margin, contentW, 2, 'F');
+
+  doc.setFontSize(22); doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 41, 59);
+  doc.text('CASH PAYMENT VOUCHER', margin, margin + 32);
+
+  doc.setFontSize(11); doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text(`# ${v.voucher_number}`, margin, margin + 48);
+
+  doc.setFontSize(13); doc.setFont('helvetica', 'bold');
+  doc.setTextColor(22, 163, 74);
+  doc.text('ERP System', pageW - margin, margin + 32, { align: 'right' });
+
+  doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Date: ${formatDate(v.date)}`, pageW - margin, margin + 48, { align: 'right' });
+
+  // ── Pay To / Payment Mode ─────────────────────────────
+  let y = margin + 76;
+  doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+  doc.setTextColor(148, 163, 184);
+  doc.text('PAY TO', margin, y);
+  doc.text('PAYMENT MODE', margin + contentW / 2, y);
+  y += 14;
+
+  doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 41, 59);
+  doc.text(v.payee, margin, y);
+  doc.setFontSize(11);
+  doc.text(v.payment_mode || 'Cash', margin + contentW / 2, y);
+  y += 14;
+
+  if (v.reference) {
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Ref: ${v.reference}`, margin + contentW / 2, y);
+  }
+  y += 20;
+
+  // ── Amount box ────────────────────────────────────────
+  doc.setFillColor(240, 253, 244); doc.setDrawColor(187, 247, 208);
+  doc.roundedRect(margin, y, contentW, 52, 4, 4, 'FD');
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+  doc.setTextColor(148, 163, 184);
+  doc.text('AMOUNT', margin + 12, y + 14);
+  doc.setFontSize(20); doc.setFont('helvetica', 'bold');
+  doc.setTextColor(21, 128, 61);
+  doc.text(_voucherFmt(v.amount), margin + 12, y + 36);
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text(v.amount_words || numberToWords(v.amount), margin + 12, y + 48,
+    { maxWidth: contentW - 24 });
+  y += 64;
+
+  // ── Purpose ───────────────────────────────────────────
+  if (v.purpose) {
+    y += 8;
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+    doc.setTextColor(148, 163, 184);
+    doc.text('PURPOSE / NARRATION', margin, y); y += 14;
+    doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+    doc.setTextColor(30, 41, 59);
+    doc.text(v.purpose, margin, y, { maxWidth: contentW }); y += 16;
+  }
+
+  // ── Notes ─────────────────────────────────────────────
+  if (v.notes) {
+    y += 8;
+    doc.setFillColor(248, 250, 252); doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(margin, y, contentW, 28, 4, 4, 'FD');
+    doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text('Notes:', margin + 10, y + 12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(String(v.notes), margin + 10 + doc.getTextWidth('Notes:') + 4, y + 12,
+      { maxWidth: contentW - 30 });
+    y += 28;
+  }
+
+  // ── Signature lines ───────────────────────────────────
+  y = Math.max(y + 60, pageH - 140);
+  const sigW = (contentW - 40) / 2;
+  doc.setDrawColor(30, 41, 59);
+  doc.line(margin, y, margin + sigW, y);
+  doc.line(margin + sigW + 40, y, margin + contentW, y);
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  const authLabel = v.approved_by ? `Approved By: ${v.approved_by}` : 'Authorised Signatory';
+  doc.text(authLabel, margin + sigW / 2, y + 12, { align: 'center' });
+  doc.text("Receiver's Signature", margin + sigW + 40 + sigW / 2, y + 12, { align: 'center' });
+
+  // ── Footer ────────────────────────────────────────────
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+  doc.setTextColor(148, 163, 184);
+  doc.text('Thank you for your business.', pageW / 2, pageH - 40, { align: 'center' });
+
+  doc.save(`Voucher_${v.voucher_number}_${_voucherDatestamp()}.pdf`);
 }
 
 function showModal(id) { document.getElementById(id).style.display = 'flex'; }

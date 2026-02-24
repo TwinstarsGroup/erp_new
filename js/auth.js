@@ -11,7 +11,23 @@ async function requireAuth() {
     window.location.href = 'index.html';
     return null;
   }
+  startIdleTimer();
   return session;
+}
+
+// ── Idle timeout: sign out after 10 minutes of inactivity ────────────────
+let _idleTimer = null;
+function startIdleTimer() {
+  if (_idleTimer !== null) return; // already running
+  const IDLE_MS = 10 * 60 * 1000;
+  _idleTimer = setTimeout(signOut, IDLE_MS);
+  function resetTimer() {
+    clearTimeout(_idleTimer);
+    _idleTimer = setTimeout(signOut, IDLE_MS);
+  }
+  ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'].forEach(evt => {
+    document.addEventListener(evt, resetTimer, { passive: true });
+  });
 }
 
 // ── Populate sidebar user info ────────────────────────────────────────────

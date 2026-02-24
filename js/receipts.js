@@ -365,29 +365,22 @@ async function removeReceiptAttachment(id, filePath) {
 
 // ── PDF download helpers ──────────────────────────────────────────────────
 function _buildWatermarkDataURL() {
-  const c = document.createElement('canvas');
-  c.width = 300; c.height = 300;
-  const ctx = c.getContext('2d');
-  ctx.globalAlpha = 0.3;
-  ctx.fillStyle = '#2563eb';
-  const r = 24, x = 10, y = 10, w = 280, h = 280;
-  ctx.beginPath();
-  ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 80px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('ERP', 150, 120);
-  ctx.font = '36px Arial';
-  ctx.fillText('System', 150, 190);
-  ctx.globalAlpha = 1.0;
-  return c.toDataURL('image/png');
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = 200; c.height = 200;
+      const ctx = c.getContext('2d');
+      ctx.globalAlpha = 0.15;
+      ctx.drawImage(img, 0, 0, 200, 200);
+      resolve(c.toDataURL('image/png'));
+    };
+    img.onerror = () => {
+      console.error('Failed to load watermark image: images/logo200.png');
+      resolve(document.createElement('canvas').toDataURL('image/png'));
+    };
+    img.src = 'images/logo200.png';
+  });
 }
 
 function _fmtPDF(amount) {
@@ -403,7 +396,7 @@ function _datastamp() {
     String(n.getMinutes()).padStart(2, '0');
 }
 
-function downloadReceiptPDF(r) {
+async function downloadReceiptPDF(r) {
   if (!r) return;
   if (!window.jspdf) { showToast('PDF library not loaded', 'error'); return; }
 
@@ -415,7 +408,7 @@ function downloadReceiptPDF(r) {
   const contentW = pageW - 2 * margin;
 
   // ── Watermark ──────────────────────────────────────────
-  const wmDataURL = _buildWatermarkDataURL();
+  const wmDataURL = await _buildWatermarkDataURL();
   doc.addImage(wmDataURL, 'PNG', (pageW - 200) / 2, (pageH - 200) / 2, 200, 200);
 
   // ── Header bar ─────────────────────────────────────────
