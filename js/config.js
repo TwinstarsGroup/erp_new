@@ -9,7 +9,7 @@
  */
 
 const SUPABASE_URL = 'https://lqaomzpyhgntfkthleuo.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable__s0-IYwN9ivc2VOYFQWzbg_NFHs_SQn';
+const SUPABASE_ANON_KEY = 'sb_publishable__s0-IYwN9ivc2VOYFQWzbg_NFHs_SQn'; //configuration to Supabase
 
 // Initialise the Supabase client (loaded via CDN in each HTML page)
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
