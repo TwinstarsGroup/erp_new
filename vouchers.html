@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cash Vouchers — ERP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-name">ERP System</div>
+      <div class="brand-sub">Administration Console</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <a class="nav-link" data-page="dashboard.html" href="dashboard.html">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </a>
+      <div class="nav-section-label">Finance</div>
+      <a class="nav-link" data-page="receipts.html" href="receipts.html">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Receipts
+      </a>
+      <a class="nav-link" data-page="vouchers.html" href="vouchers.html">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Cash Vouchers
+      </a>
+      <div class="nav-section-label">Storage</div>
+      <a class="nav-link" data-page="attachments.html" href="attachments.html">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        Attachments
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <img id="user-avatar" src="https://ui-avatars.com/api/?name=Admin&background=2563eb&color=fff" alt="User" />
+        <div>
+          <div class="user-name" id="user-name">Admin</div>
+          <div class="user-role" id="user-email">Loading…</div>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="signOut()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-title">Cash Vouchers</div>
+      <div class="topbar-actions">
+        <div class="search-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="form-control" id="voucher-search" placeholder="Search by payee…" style="width:220px;"
+            oninput="fetchVouchers(this.value)" />
+        </div>
+      </div>
+    </header>
+
+    <main class="page-body">
+
+      <!-- Create Form -->
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-header">
+          <div class="card-title">New Cash Voucher</div>
+        </div>
+        <div class="card-body">
+          <form id="voucher-form" onsubmit="return false;">
+
+            <div class="form-row cols-3">
+              <div class="form-group">
+                <label class="form-label">Voucher # <span class="required">*</span></label>
+                <input class="form-control" id="voucher-number" type="text" readonly />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Date <span class="required">*</span></label>
+                <input class="form-control" id="voucher-date" type="date" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Payment Mode</label>
+                <select class="form-control" id="voucher-payment-mode">
+                  <option value="Cash">Cash</option>
+                  <option value="Cheque">Cheque</option>
+                  <option value="NEFT">NEFT</option>
+                  <option value="RTGS">RTGS</option>
+                  <option value="UPI">UPI</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row cols-2">
+              <div class="form-group">
+                <label class="form-label">Pay To (Payee) <span class="required">*</span></label>
+                <input class="form-control" id="voucher-payee" type="text" placeholder="Payee name" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Amount (₹) <span class="required">*</span></label>
+                <input class="form-control" id="voucher-amount" type="number" min="0.01" step="0.01" placeholder="0.00" required />
+              </div>
+            </div>
+
+            <!-- Amount in words (auto) -->
+            <div class="form-group">
+              <label class="form-label">Amount in Words</label>
+              <div class="amount-words" id="amount-words">—</div>
+            </div>
+
+            <div class="form-row cols-2">
+              <div class="form-group">
+                <label class="form-label">Purpose / Narration</label>
+                <input class="form-control" id="voucher-purpose" type="text" placeholder="e.g. Office supplies purchase" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Reference / Cheque No.</label>
+                <input class="form-control" id="voucher-reference" type="text" placeholder="Optional reference number" />
+              </div>
+            </div>
+
+            <div class="form-row cols-2">
+              <div class="form-group">
+                <label class="form-label">Approved By</label>
+                <input class="form-control" id="voucher-approved-by" type="text" placeholder="Name of authoriser" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Notes</label>
+                <input class="form-control" id="voucher-notes" type="text" placeholder="Additional notes" />
+              </div>
+            </div>
+
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+              <button type="button" class="btn btn-outline" onclick="resetVoucherForm()">Reset</button>
+              <button type="button" class="btn btn-success" onclick="saveVoucher()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Save Voucher
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+
+      <!-- Voucher List -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">All Cash Vouchers</div>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <div id="voucher-list">
+            <div class="empty-state" style="padding:40px;">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+              <h3>No vouchers yet</h3>
+              <p>Create your first cash voucher using the form above</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+</div>
+
+<!-- Voucher View Modal -->
+<div class="modal-overlay" id="voucher-modal" style="display:none;" onclick="if(event.target===this)hideModal('voucher-modal')">
+  <div class="modal" style="max-width:680px;">
+    <div class="modal-header">
+      <div class="modal-title">Voucher Preview</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-sm btn-success" onclick="printVoucher()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Print
+        </button>
+        <button class="btn-close" onclick="hideModal('voucher-modal')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="modal-body" style="padding:0;" id="voucher-modal-content"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/vouchers.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', initVouchers);
+</script>
+</body>
+</html>
