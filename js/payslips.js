@@ -97,7 +97,7 @@ async function generatePayslipPDF() {
   if (!d) return;
   _currentPayslipData = d;
 
-  const pdfBlob = _buildPDFBlob(d);
+  const pdfBlob = await _buildPDFBlob(d);
   const filename = `${d.empName.replace(/\s+/g, '_')}_${d.period}.pdf`;
 
   // Trigger download
@@ -114,24 +114,87 @@ async function generatePayslipPDF() {
   await fetchPayslips();
 }
 
+// ── Load an image URL and return a data URL (for jsPDF embedding) ─────────
+function _loadImageAsDataUrl(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width  = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
 // ── Build PDF blob using jsPDF ────────────────────────────────────────────
-function _buildPDFBlob(d) {
+async function _buildPDFBlob(d) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
-  const pageW = doc.internal.pageSize.getWidth();
-  let y = 20;
+  const pageW  = doc.internal.pageSize.getWidth();
+  const pageH  = doc.internal.pageSize.getHeight();
+  const stripH = 3.5; // ~10pt header/footer strips
 
-  // Header
-  doc.setFontSize(18);
+  // Load logo
+  const logoDataUrl = await _loadImageAsDataUrl('images/logo200.png');
+
+  // ── Watermark (behind content, 35% opacity) ───────────────────────────
+  if (logoDataUrl) {
+    try {
+      const wmSize = 80;
+      doc.saveGraphicsState();
+      doc.setGState(new doc.GState({ opacity: 0.35, 'fill-opacity': 0.35 }));
+      doc.addImage(logoDataUrl, 'PNG', (pageW - wmSize) / 2, (pageH - wmSize) / 2, wmSize, wmSize);
+      doc.restoreGraphicsState();
+    } catch (e) { /* GState not available — skip watermark opacity */ }
+  }
+
+  // ── Blue top strip ────────────────────────────────────────────────────
+  doc.setFillColor(0, 70, 180);
+  doc.rect(0, 0, pageW, stripH, 'F');
+
+  // ── Maroon bottom strip ───────────────────────────────────────────────
+  doc.setFillColor(128, 0, 0);
+  doc.rect(0, pageH - stripH, pageW, stripH, 'F');
+
+  // Footer disclaimer text in maroon strip
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(255, 255, 255);
+  doc.text(
+    'This is a system generated document. Signature not required.',
+    pageW / 2, pageH - stripH / 2 + 1,
+    { align: 'center' }
+  );
+  doc.setTextColor(0, 0, 0);
+
+  let y = stripH + 6;
+
+  // ── Logo in header ────────────────────────────────────────────────────
+  if (logoDataUrl) {
+    const logoSize = 18;
+    doc.addImage(logoDataUrl, 'PNG', (pageW - logoSize) / 2, y, logoSize, logoSize);
+    y += logoSize + 4;
+  }
+
+  // ── Title ─────────────────────────────────────────────────────────────
+  doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text('PAYSLIP', pageW / 2, y, { align: 'center' });
+  doc.text('Twinstar Group - Payslip', pageW / 2, y, { align: 'center' });
   y += 8;
 
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
+  // ── Employee info (bold) ──────────────────────────────────────────────
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
   doc.text(d.empName + ' (' + d.empCode + ')', pageW / 2, y, { align: 'center' });
   y += 6;
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
   doc.text('Salary Period: ' + d.period + '   |   Date of Issue: ' + formatDate(d.issueDate), pageW / 2, y, { align: 'center' });
   y += 10;
 
@@ -139,7 +202,7 @@ function _buildPDFBlob(d) {
   doc.line(14, y, pageW - 14, y);
   y += 8;
 
-  // Earnings / Deductions table
+  // ── Earnings / Deductions table ───────────────────────────────────────
   const rows = [
     ['Basic Salary',     _fmt(d.basic)],
     ['HRA',              _fmt(d.hra)],
@@ -150,7 +213,7 @@ function _buildPDFBlob(d) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.text('Description', 14, y);
-  doc.text('Amount (₹)', pageW - 14, y, { align: 'right' });
+  doc.text('Amount (Rs.)', pageW - 14, y, { align: 'right' });
   y += 5;
   doc.setDrawColor(180);
   doc.line(14, y, pageW - 14, y);
@@ -192,7 +255,7 @@ async function emailPayslip() {
   showLoading(true);
   try {
     // Convert PDF to base64 for the edge function
-    const pdfBlob = _buildPDFBlob(d);
+    const pdfBlob = await _buildPDFBlob(d);
     const base64  = await _blobToBase64(pdfBlob);
     const filename = `${d.empName.replace(/\s+/g, '_')}_${d.period}.pdf`;
 
