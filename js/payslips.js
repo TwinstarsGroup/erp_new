@@ -4,6 +4,23 @@
 
 let _currentPayslipData = null;
 
+// ── Period helpers ─────────────────────────────────────────────────────────
+// Convert YYYY-MM (from <input type="month">) to "Month, Year" e.g. "February, 2026"
+function _formatPeriodDisplay(yyyyMM) {
+  if (!yyyyMM) return yyyyMM;
+  const [year, month] = yyyyMM.split('-');
+  const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+  return date.toLocaleString('en-US', { month: 'long' }) + ', ' + year;
+}
+
+// Convert YYYY-MM to "Month-Year" e.g. "February-2026"
+function _formatPeriodFilename(yyyyMM) {
+  if (!yyyyMM) return yyyyMM;
+  const [year, month] = yyyyMM.split('-');
+  const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+  return date.toLocaleString('en-US', { month: 'long' }) + '-' + year;
+}
+
 async function initPayslips() {
   const session = await requireAuth();
   if (!session) return;
@@ -14,6 +31,8 @@ async function initPayslips() {
   document.getElementById('date-of-issue').value = todayISO();
 
   await loadEmployeeDropdown();
+  // Reload history when employee selection changes
+  document.getElementById('payslip-employee').addEventListener('change', fetchPayslips);
   await fetchPayslips();
 }
 
@@ -21,7 +40,7 @@ async function initPayslips() {
 async function loadEmployeeDropdown() {
   const { data, error } = await supabaseClient
     .from('employees')
-    .select('id, emp_id, emp_name, email')
+    .select('id, emp_id, emp_name, email, account_number, pan_number, companies(name)')
     .order('emp_name', { ascending: true });
 
   const sel = document.getElementById('payslip-employee');
@@ -31,7 +50,16 @@ async function loadEmployeeDropdown() {
   }
 
   sel.innerHTML = '<option value="">— Select Employee —</option>' +
-    data.map(e => `<option value="${e.id}" data-name="${escapeHtml(e.emp_name)}" data-empid="${escapeHtml(e.emp_id)}" data-email="${escapeHtml(e.email)}">${escapeHtml(e.emp_name)} (${escapeHtml(e.emp_id)})</option>`).join('');
+    data.map(e => {
+      const companyName = (e.companies && e.companies.name) ? e.companies.name : 'Twinstar Group';
+      return `<option value="${e.id}"
+        data-name="${escapeHtml(e.emp_name)}"
+        data-empid="${escapeHtml(e.emp_id)}"
+        data-email="${escapeHtml(e.email || '')}"
+        data-account="${escapeHtml(e.account_number || '')}"
+        data-company="${escapeHtml(companyName)}"
+      >${escapeHtml(e.emp_name)} (${escapeHtml(e.emp_id)})</option>`;
+    }).join('');
 }
 
 // ── Recalculate net pay on input change ───────────────────────────────────
@@ -71,24 +99,28 @@ function _buildPayslipData() {
   const empId    = sel.value;
   if (!empId) { showToast('Please select an employee.', 'warning'); return null; }
 
-  const opt        = sel.options[sel.selectedIndex];
-  const empName    = opt.dataset.name;
-  const empCode    = opt.dataset.empid;
-  const empEmail   = opt.dataset.email;
-  const period     = document.getElementById('salary-period').value;
-  const issueDate  = document.getElementById('date-of-issue').value;
-  const basic      = parseFloat(document.getElementById('basic-salary').value)     || 0;
-  const hra        = parseFloat(document.getElementById('hra').value)               || 0;
-  const allowances = parseFloat(document.getElementById('other-allowances').value) || 0;
-  const deductions = parseFloat(document.getElementById('total-deductions').value) || 0;
+  const opt           = sel.options[sel.selectedIndex];
+  const empName       = opt.dataset.name;
+  const empCode       = opt.dataset.empid;
+  const empEmail      = opt.dataset.email;
+  const accountNumber = opt.dataset.account || '';
+  const companyName   = opt.dataset.company || 'Twinstar Group';
+  const rawPeriod     = document.getElementById('salary-period').value; // YYYY-MM
+  const issueDate     = document.getElementById('date-of-issue').value;
+  const basic         = parseFloat(document.getElementById('basic-salary').value)     || 0;
+  const hra           = parseFloat(document.getElementById('hra').value)               || 0;
+  const allowances    = parseFloat(document.getElementById('other-allowances').value) || 0;
+  const deductions    = parseFloat(document.getElementById('total-deductions').value) || 0;
 
-  if (!period)    { showToast('Please enter a salary period.',    'warning'); return null; }
+  if (!rawPeriod) { showToast('Please enter a salary period.',    'warning'); return null; }
   if (!issueDate) { showToast('Please enter a date of issue.',    'warning'); return null; }
   if (!basic)     { showToast('Please enter the basic salary.',   'warning'); return null; }
 
+  const period         = _formatPeriodDisplay(rawPeriod);   // "February, 2026"
+  const periodFilename = _formatPeriodFilename(rawPeriod);  // "February-2026"
   const net = Math.max(0, basic + hra + allowances - deductions);
 
-  return { empId, empName, empCode, empEmail, period, issueDate, basic, hra, allowances, deductions, net };
+  return { empId, empName, empCode, empEmail, accountNumber, companyName, period, periodFilename, issueDate, basic, hra, allowances, deductions, net };
 }
 
 // ── Generate PDF ──────────────────────────────────────────────────────────
@@ -98,7 +130,7 @@ async function generatePayslipPDF() {
   _currentPayslipData = d;
 
   const pdfBlob = await _buildPDFBlob(d);
-  const filename = `${d.empName.replace(/\s+/g, '_')}_${d.period}.pdf`;
+  const filename = `${d.empName.replace(/\s+/g, '')}_${d.periodFilename}.pdf`;
 
   // Trigger download
   const url = URL.createObjectURL(pdfBlob);
@@ -139,6 +171,10 @@ async function _buildPDFBlob(d) {
   const pageW  = doc.internal.pageSize.getWidth();
   const pageH  = doc.internal.pageSize.getHeight();
   const stripH = 3.5; // ~10pt header/footer strips
+
+  // Table occupies 80% of page width, centered
+  const tableW = pageW * 0.8;
+  const tableX = (pageW - tableW) / 2;
 
   // Load logo
   const logoDataUrl = await _loadImageAsDataUrl('images/logo200.png');
@@ -185,7 +221,7 @@ async function _buildPDFBlob(d) {
   // ── Title ─────────────────────────────────────────────────────────────
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text('Twinstar Group - Payslip', pageW / 2, y, { align: 'center' });
+  doc.text((d.companyName || 'Twinstar Group') + ' - Payslip', pageW / 2, y, { align: 'center' });
   y += 8;
 
   // ── Employee info (bold) ──────────────────────────────────────────────
@@ -196,10 +232,15 @@ async function _buildPDFBlob(d) {
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text('Salary Period: ' + d.period + '   |   Date of Issue: ' + formatDate(d.issueDate), pageW / 2, y, { align: 'center' });
-  y += 10;
+  y += 6;
+  if (d.accountNumber) {
+    doc.text('Account Number: ' + d.accountNumber, pageW / 2, y, { align: 'center' });
+    y += 6;
+  }
+  y += 4;
 
   doc.setDrawColor(200);
-  doc.line(14, y, pageW - 14, y);
+  doc.line(tableX, y, tableX + tableW, y);
   y += 8;
 
   // ── Earnings / Deductions table ───────────────────────────────────────
@@ -212,28 +253,28 @@ async function _buildPDFBlob(d) {
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text('Description', 14, y);
-  doc.text('Amount (Rs.)', pageW - 14, y, { align: 'right' });
+  doc.text('Description', tableX, y);
+  doc.text('Amount (Rs.)', tableX + tableW, y, { align: 'right' });
   y += 5;
   doc.setDrawColor(180);
-  doc.line(14, y, pageW - 14, y);
+  doc.line(tableX, y, tableX + tableW, y);
   y += 6;
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   rows.forEach(([label, value]) => {
-    doc.text(label, 14, y);
-    doc.text(value, pageW - 14, y, { align: 'right' });
+    doc.text(label, tableX, y);
+    doc.text(value, tableX + tableW, y, { align: 'right' });
     y += 7;
   });
 
-  doc.line(14, y, pageW - 14, y);
+  doc.line(tableX, y, tableX + tableW, y);
   y += 6;
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text('Net Pay', 14, y);
-  doc.text(_fmt(d.net), pageW - 14, y, { align: 'right' });
+  doc.text('Net Pay', tableX, y);
+  doc.text(_fmt(d.net), tableX + tableW, y, { align: 'right' });
 
   return doc.output('blob');
 }
@@ -257,7 +298,7 @@ async function emailPayslip() {
     // Convert PDF to base64 for the edge function
     const pdfBlob = await _buildPDFBlob(d);
     const base64  = await _blobToBase64(pdfBlob);
-    const filename = `${d.empName.replace(/\s+/g, '_')}_${d.period}.pdf`;
+    const filename = `${d.empName.replace(/\s+/g, '')}_${d.periodFilename}.pdf`;
 
     const { data: { session } } = await supabaseClient.auth.getSession();
     const supabaseUrl = supabaseClient.supabaseUrl;
@@ -317,14 +358,67 @@ async function _savePayslipRecord(d, pdfUrl) {
   if (error) console.error('Failed to save payslip record:', error.message);
 }
 
+// ── Download/view a payslip regenerated from a stored record ─────────────
+async function _downloadPayslipFromRecord(p) {
+  const emp         = p.employees || {};
+  const companyName = (emp.companies && emp.companies.name) ? emp.companies.name : 'Twinstar Group';
+  // period is stored as "Month, Year"; derive filename version "Month-Year"
+  const periodFilename = (p.period || '').replace(', ', '-');
+  const d = {
+    empId:          p.employee_id,
+    empName:        emp.emp_name  || '—',
+    empCode:        emp.emp_id    || '',
+    empEmail:       emp.email     || '',
+    accountNumber:  emp.account_number || '',
+    companyName,
+    period:         p.period,
+    periodFilename,
+    issueDate:      p.issue_date,
+    basic:          parseFloat(p.basic_salary)     || 0,
+    hra:            parseFloat(p.hra)               || 0,
+    allowances:     parseFloat(p.other_allowances)  || 0,
+    deductions:     parseFloat(p.total_deductions)  || 0,
+    net:            parseFloat(p.net_pay)           || 0,
+  };
+  showLoading(true);
+  try {
+    const pdfBlob = await _buildPDFBlob(d);
+    const filename = `${d.empName.replace(/\s+/g, '')}_${d.periodFilename}.pdf`;
+    const url = URL.createObjectURL(pdfBlob);
+    const a   = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    showToast('Failed to generate PDF: ' + err.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
 // ── Fetch payslip history ─────────────────────────────────────────────────
 async function fetchPayslips() {
-  const { data, error } = await supabaseClient
+  const empSel       = document.getElementById('payslip-employee');
+  const selectedEmpId = empSel ? empSel.value : '';
+
+  // Calculate date 6 months ago for filtering
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  const sixMonthsAgoISO = sixMonthsAgo.toISOString().split('T')[0];
+
+  let query = supabaseClient
     .from('payslips')
-    .select('*, employees(emp_name, emp_id)')
+    .select('*, employees(emp_name, emp_id, email, account_number, companies(name))')
+    .gte('issue_date', sixMonthsAgoISO)
     .order('created_at', { ascending: false })
     .limit(50);
 
+  if (selectedEmpId) {
+    query = query.eq('employee_id', selectedEmpId);
+  }
+
+  const { data, error } = await query;
   const el = document.getElementById('payslip-list');
 
   if (error || !data || data.length === 0) {
@@ -336,6 +430,9 @@ async function fetchPayslips() {
     return;
   }
 
+  // Store data for inline access from onclick handlers
+  window._payslipHistory = data;
+
   el.innerHTML = `<div class="table-container"><table>
     <thead><tr>
       <th>Employee</th>
@@ -344,8 +441,9 @@ async function fetchPayslips() {
       <th>Basic</th>
       <th>Net Pay</th>
       <th>Generated</th>
+      <th>Action</th>
     </tr></thead>
-    <tbody>${data.map(p => {
+    <tbody>${data.map((p, idx) => {
       const empName = p.employees ? escapeHtml(p.employees.emp_name) : '—';
       const empCode = p.employees ? escapeHtml(p.employees.emp_id)   : '';
       return `<tr>
@@ -355,6 +453,9 @@ async function fetchPayslips() {
         <td>${formatCurrency(p.basic_salary)}</td>
         <td style="font-weight:600;">${formatCurrency(p.net_pay)}</td>
         <td style="color:#64748b;font-size:.82rem;">${formatDate(p.created_at)}</td>
+        <td>
+          <button class="btn btn-sm btn-outline" onclick="_downloadPayslipFromRecord(window._payslipHistory[${idx}])">Download</button>
+        </td>
       </tr>`;
     }).join('')}</tbody>
   </table></div>`;

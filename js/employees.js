@@ -2,6 +2,12 @@
  * Employees page logic — Create Employee TSE
  */
 
+// Map from select-option values to canonical company names
+const COMPANY_NAMES = {
+  'twinstar-entertainers': 'Twinstar Entertainers LLP',
+  'twinstar-datalytiks':   'Twinstar Datalytiks LLP'
+};
+
 async function initEmployees() {
   const session = await requireAuth();
   if (!session) return;
@@ -12,16 +18,17 @@ async function initEmployees() {
 
 // ── Save new employee ─────────────────────────────────────────────────────
 async function saveEmployee() {
-  const name        = document.getElementById('emp-name').value.trim();
-  const empId       = document.getElementById('emp-id').value.trim();
-  const doj         = document.getElementById('date-of-joining').value;
-  const accountNum  = document.getElementById('account-number').value.trim();
-  const position    = document.getElementById('position').value.trim();
-  const companyName = document.getElementById('company-name').value.trim();
-  const email       = document.getElementById('emp-email').value.trim();
+  const name       = document.getElementById('emp-name').value.trim();
+  const empId      = document.getElementById('emp-id').value.trim();
+  const doj        = document.getElementById('date-of-joining').value;
+  const accountNum = document.getElementById('account-number').value.trim();
+  const position   = document.getElementById('position').value.trim();
+  const companyKey = document.getElementById('company-id').value;
+  const email      = document.getElementById('emp-email').value.trim();
+  const panNumber  = document.getElementById('pan-number').value.trim();
 
   // Validation
-  if (!name || !empId || !doj || !accountNum || !position || !companyName || !email) {
+  if (!name || !empId || !doj || !accountNum || !position || !companyKey || !email) {
     showToast('Please fill in all required fields.', 'warning');
     return;
   }
@@ -31,20 +38,32 @@ async function saveEmployee() {
     return;
   }
 
+  // Resolve company_id from companies table
   showLoading(true);
+  const companyName = COMPANY_NAMES[companyKey] || '';
+  const { data: companies, error: cErr } = await supabaseClient
+    .from('companies')
+    .select('id')
+    .eq('name', companyName)
+    .limit(1);
+
+  const companyId = (companies && companies.length > 0) ? companies[0].id : null;
+
   const { error } = await supabaseClient.from('employees').insert([{
-    emp_name:     name,
-    emp_id:       empId,
+    emp_name:        name,
+    emp_id:          empId,
     date_of_joining: doj,
     account_number:  accountNum,
     position,
-    company_name: companyName,
+    company_name:    companyName,
+    company_id:      companyId,
+    pan_number:      panNumber || null,
     email
   }]);
   showLoading(false);
 
-  if (error) {
-    showToast('Error saving employee: ' + error.message, 'error');
+  if (cErr || error) {
+    showToast('Error saving employee: ' + (error || cErr).message, 'error');
     return;
   }
 
@@ -60,7 +79,10 @@ function resetEmployeeForm() {
 
 // ── Fetch and render employees ────────────────────────────────────────────
 async function fetchEmployees(search = '') {
-  let query = supabaseClient.from('employees').select('*').order('created_at', { ascending: false });
+  let query = supabaseClient
+    .from('employees')
+    .select('*, companies(name)')
+    .order('created_at', { ascending: false });
   if (search) {
     query = query.ilike('emp_name', `%${search}%`);
   }
@@ -92,18 +114,21 @@ async function fetchEmployees(search = '') {
       <th>Email</th>
       <th>Action</th>
     </tr></thead>
-    <tbody>${data.map(emp => `<tr>
+    <tbody>${data.map(emp => {
+      const companyDisplay = (emp.companies && emp.companies.name) ? emp.companies.name : (emp.company_name || '—');
+      return `<tr>
       <td style="font-weight:600;">${escapeHtml(emp.emp_id)}</td>
       <td>${escapeHtml(emp.emp_name)}</td>
       <td>${escapeHtml(emp.position)}</td>
-      <td>${escapeHtml(emp.company_name)}</td>
+      <td>${escapeHtml(companyDisplay)}</td>
       <td>${formatDate(emp.date_of_joining)}</td>
       <td>${escapeHtml(emp.email)}</td>
       <td>
         <button class="btn btn-sm btn-outline" style="color:#dc2626;border-color:#dc2626;"
           onclick="deleteEmployee('${emp.id}')">Delete</button>
       </td>
-    </tr>`).join('')}</tbody>
+    </tr>`;
+    }).join('')}</tbody>
   </table></div>`;
 }
 
