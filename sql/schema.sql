@@ -103,3 +103,63 @@ create policy "Authenticated full access on attachments" on attachments
 --
 -- create policy "Authenticated delete" on storage.objects
 --   for delete to authenticated using (bucket_id = 'attachments');
+
+-- ── Employees ─────────────────────────────────────────────────
+create table if not exists employees (
+  id               uuid primary key default gen_random_uuid(),
+  emp_id           text not null unique,
+  emp_name         text not null,
+  date_of_joining  date not null,
+  account_number   text not null,
+  position         text not null,
+  company_name     text not null,
+  email            text not null,
+  created_at       timestamptz default now(),
+  updated_at       timestamptz default now()
+);
+
+create trigger employees_updated_at
+  before update on employees
+  for each row execute function update_updated_at();
+
+alter table employees enable row level security;
+
+create policy "Authenticated full access on employees" on employees
+  for all to authenticated using (true) with check (true);
+
+-- ── Payslips ──────────────────────────────────────────────────
+create table if not exists payslips (
+  id               uuid primary key default gen_random_uuid(),
+  employee_id      uuid not null references employees(id) on delete cascade,
+  period           text not null,
+  issue_date       date not null,
+  basic_salary     numeric(12,2) not null default 0,
+  hra              numeric(12,2) not null default 0,
+  other_allowances numeric(12,2) not null default 0,
+  total_deductions numeric(12,2) not null default 0,
+  net_pay          numeric(12,2) not null default 0,
+  pdf_url          text,
+  created_at       timestamptz default now()
+);
+
+alter table payslips enable row level security;
+
+create policy "Authenticated full access on payslips" on payslips
+  for all to authenticated using (true) with check (true);
+
+-- ── Payslips storage bucket ───────────────────────────────────
+-- Create a bucket named 'payslips' in Supabase Dashboard → Storage
+-- and set it to Public, then add these policies:
+--
+-- insert into storage.buckets (id, name, public)
+--   values ('payslips', 'payslips', true)
+--   on conflict (id) do nothing;
+--
+-- create policy "Authenticated upload payslips" on storage.objects
+--   for insert to authenticated with check (bucket_id = 'payslips');
+--
+-- create policy "Public read payslips" on storage.objects
+--   for select using (bucket_id = 'payslips');
+--
+-- create policy "Authenticated delete payslips" on storage.objects
+--   for delete to authenticated using (bucket_id = 'payslips');

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Attachments — Admin Console</title>
+  <title>Create Employee TSE — Admin Console</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
@@ -64,46 +64,80 @@
   <!-- Main Content -->
   <div class="main-content">
     <header class="topbar">
-      <div class="topbar-title">Attachments</div>
-      <div class="topbar-actions">
-        <div class="search-box">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input class="form-control" id="attach-search" placeholder="Search files…" style="width:220px;"
-            oninput="fetchAttachments(this.value)" />
-        </div>
-      </div>
+      <div class="topbar-title">Create Employee TSE</div>
+      <div class="topbar-actions"></div>
     </header>
 
     <main class="page-body">
 
-      <!-- Upload Zone -->
+      <!-- Create Form -->
       <div class="card" style="margin-bottom:24px;">
         <div class="card-header">
-          <div class="card-title">Upload Files</div>
-          <span style="font-size:.8rem;color:#64748b;">Max 50 MB per file</span>
+          <div class="card-title">New Employee</div>
         </div>
         <div class="card-body">
-          <div class="upload-zone" id="drop-zone">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <h3>Drop files here or click to browse</h3>
-            <p>Supports PDF, images, Office documents, and more</p>
-          </div>
-          <input type="file" id="file-input" multiple style="display:none;" />
+          <form id="employee-form" onsubmit="return false;">
+
+            <div class="form-row cols-3">
+              <div class="form-group">
+                <label class="form-label">Emp Name <span class="required">*</span></label>
+                <input class="form-control" id="emp-name" type="text" placeholder="Full name" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Emp ID <span class="required">*</span></label>
+                <input class="form-control" id="emp-id" type="text" placeholder="e.g. EMP-001" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Date of Joining <span class="required">*</span></label>
+                <input class="form-control" id="date-of-joining" type="date" required />
+              </div>
+            </div>
+
+            <div class="form-row cols-2">
+              <div class="form-group">
+                <label class="form-label">Account Number <span class="required">*</span></label>
+                <input class="form-control" id="account-number" type="text" placeholder="Bank account number" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Position <span class="required">*</span></label>
+                <input class="form-control" id="position" type="text" placeholder="e.g. Software Engineer" required />
+              </div>
+            </div>
+
+            <div class="form-row cols-2">
+              <div class="form-group">
+                <label class="form-label">Company Name <span class="required">*</span></label>
+                <input class="form-control" id="company-name" type="text" placeholder="Company name" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email ID <span class="required">*</span></label>
+                <input class="form-control" id="emp-email" type="email" placeholder="employee@example.com" required />
+              </div>
+            </div>
+
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+              <button type="button" class="btn btn-outline" onclick="resetEmployeeForm()">Reset</button>
+              <button type="button" class="btn btn-primary" onclick="saveEmployee()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Save Employee
+              </button>
+            </div>
+
+          </form>
         </div>
       </div>
 
-      <!-- File List -->
+      <!-- Employee List -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title">Stored Files</div>
-          <span id="file-count" style="font-size:.85rem;color:#64748b;"></span>
+          <div class="card-title">All Employees</div>
         </div>
         <div class="card-body" style="padding:0;">
-          <div id="attachment-list">
+          <div id="employee-list">
             <div class="empty-state" style="padding:40px;">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-              <h3>No files yet</h3>
-              <p>Upload files using the drop zone above</p>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <h3>No employees yet</h3>
+              <p>Add your first employee using the form above</p>
             </div>
           </div>
         </div>
@@ -118,9 +152,9 @@
 <script src="js/config.js"></script>
 <script src="js/common.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/attachments.js"></script>
+<script src="js/employees.js"></script>
 <script>
-  document.addEventListener('DOMContentLoaded', initAttachments);
+  document.addEventListener('DOMContentLoaded', initEmployees);
 </script>
 </body>
 </html>

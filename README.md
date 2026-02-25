@@ -1,6 +1,6 @@
-# ERP System
+# Admin Console
 
-A lightweight, easy-to-use ERP web application built with plain HTML/CSS/JavaScript and **Supabase** as the backend.
+A lightweight, easy-to-use Admin Console web application built with plain HTML/CSS/JavaScript and **Supabase** as the backend.
 
 ## Features
 
@@ -11,6 +11,8 @@ A lightweight, easy-to-use ERP web application built with plain HTML/CSS/JavaScr
 | 💳 Cash Voucher Generation | Issue cash payment vouchers with amount-in-words, approval fields and print support |
 | 📎 Attachments | Upload, store and manage supporting documents (PDF, images, Office files) via Supabase Storage |
 | 📊 Dashboard | At-a-glance stats and recent activity |
+| 👤 Create Employee TSE | Add and manage employees with full profile details (name, ID, joining date, account, position, company, email) |
+| 💰 Generate Payslip | Select employee, enter salary components, calculate net pay, download PDF payslip, email it to the employee |
 
 ## Tech Stack
 
@@ -21,22 +23,26 @@ A lightweight, easy-to-use ERP web application built with plain HTML/CSS/JavaScr
 ## Project Structure
 
 ```
-├── index.html          # Login page (Google Auth)
-├── dashboard.html      # Main dashboard
-├── receipts.html       # Receipt generation & list
-├── vouchers.html       # Cash voucher generation & list
-├── attachments.html    # File upload & management
+├── index.html                # Login page (Google Auth)
+├── dashboard.html            # Main dashboard
+├── receipts.html             # Receipt generation & list
+├── vouchers.html             # Cash voucher generation & list
+├── attachments.html          # File upload & management
+├── create-employee-tse.html  # Create & manage employees
+├── generate-payslip.html     # Generate & email payslips
 ├── css/
-│   └── style.css       # Shared stylesheet
+│   └── style.css             # Shared stylesheet
 ├── js/
-│   ├── config.js       # Supabase URL + anon key (edit this)
-│   ├── auth.js         # Google OAuth helpers
-│   ├── common.js       # Shared utilities (toast, currency, date …)
-│   ├── receipts.js     # Receipt page logic
-│   ├── vouchers.js     # Voucher page logic
-│   └── attachments.js  # Attachment page logic
+│   ├── config.js             # Supabase URL + anon key (edit this)
+│   ├── auth.js               # Google OAuth helpers
+│   ├── common.js             # Shared utilities (toast, currency, date …)
+│   ├── receipts.js           # Receipt page logic
+│   ├── vouchers.js           # Voucher page logic
+│   ├── attachments.js        # Attachment page logic
+│   ├── employees.js          # Employee create/list logic
+│   └── payslips.js           # Payslip generate/email logic
 └── sql/
-    └── schema.sql      # Supabase database schema
+    └── schema.sql            # Supabase database schema
 ```
 
 ## Quick Setup
@@ -92,10 +98,86 @@ Then visit `http://localhost:5500` and sign in with Google.
 | Receipts | `receipts.html` | Create receipts with line items, tax; view & print |
 | Cash Vouchers | `vouchers.html` | Issue vouchers; amount-in-words auto-fill; view & print |
 | Attachments | `attachments.html` | Drag-and-drop file upload; download / delete |
+| Create Employee TSE | `create-employee-tse.html` | Add employees (name, ID, joining date, account, position, company, email) |
+| Generate Payslip | `generate-payslip.html` | Select employee, enter salary components, calculate net pay, download PDF, email |
 
 ## Security Notes
 
 - Only the **anon (public)** key is used in the browser — never the service role key.
 - All tables have **Row Level Security (RLS)** enabled; only authenticated users can read or write data.
 - The Storage bucket is public-read so uploaded files can be downloaded via direct URL. Restrict this further if needed.
+
+## Payslip Email Setup
+
+Payslip emails are sent via a **Supabase Edge Function** (`send-payslip`) so that SMTP credentials are never exposed to the browser.
+
+### 1. Create the Edge Function
+
+```bash
+supabase functions new send-payslip
+```
+
+Place the following code in `supabase/functions/send-payslip/index.ts`:
+
+```typescript
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+
+serve(async (req) => {
+  const { to, empName, period, pdfBase64, pdfFilename } = await req.json();
+
+  const SMTP_HOST     = Deno.env.get('SMTP_HOST')!;
+  const SMTP_PORT     = parseInt(Deno.env.get('SMTP_PORT') || '587');
+  const SMTP_USER     = Deno.env.get('SMTP_USER')!;
+  const SMTP_PASS     = Deno.env.get('SMTP_PASS')!;
+  const SENDER_EMAIL  = 'admin@twinstarsgroup.com';
+  const SENDER_NAME   = 'Admin Console';
+
+  // Use any Deno-compatible SMTP library or Resend/SendGrid HTTP API here.
+  // Example using Resend (https://resend.com):
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`
+    },
+    body: JSON.stringify({
+      from:    `${SENDER_NAME} <${SENDER_EMAIL}>`,
+      to:      [to],
+      subject: `Payslip for ${period} — ${empName}`,
+      html:    `<p>Dear ${empName},</p><p>Please find your payslip for <strong>${period}</strong> attached.</p><p>Regards,<br/>Admin Console</p>`,
+      attachments: [{
+        filename: pdfFilename,
+        content:  pdfBase64
+      }]
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    return new Response(JSON.stringify({ error: err }), { status: 500 });
+  }
+  return new Response(JSON.stringify({ ok: true }), { status: 200 });
+});
+```
+
+### 2. Set secrets
+
+```bash
+supabase secrets set RESEND_API_KEY=re_xxxxxxxxxxxx
+# or for SMTP:
+supabase secrets set SMTP_HOST=smtp.example.com SMTP_PORT=587 SMTP_USER=user SMTP_PASS=pass
+```
+
+### 3. Deploy the function
+
+```bash
+supabase functions deploy send-payslip --no-verify-jwt
+```
+
+> **Note:** The Edge Function validates the caller's Supabase JWT automatically when `--no-verify-jwt` is omitted. Only authenticated users can trigger it.
+
+### 4. Sender address
+
+The sender address is hardcoded as `admin@twinstarsgroup.com` inside the Edge Function. Ensure this address is verified/authorised by your email provider (Resend, SendGrid, etc.).
+
 
