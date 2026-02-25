@@ -104,6 +104,23 @@ create policy "Authenticated full access on attachments" on attachments
 -- create policy "Authenticated delete" on storage.objects
 --   for delete to authenticated using (bucket_id = 'attachments');
 
+-- ── Companies ─────────────────────────────────────────────────
+create table if not exists companies (
+  id    uuid primary key default gen_random_uuid(),
+  name  text not null unique
+);
+
+alter table companies enable row level security;
+
+create policy "Authenticated full access on companies" on companies
+  for all to authenticated using (true) with check (true);
+
+-- Seed the two required companies
+insert into companies (name) values
+  ('Twinstar Entertainers LLP'),
+  ('Twinstar Datalytiks LLP')
+on conflict (name) do nothing;
+
 -- ── Employees ─────────────────────────────────────────────────
 create table if not exists employees (
   id               uuid primary key default gen_random_uuid(),
@@ -112,11 +129,18 @@ create table if not exists employees (
   date_of_joining  date not null,
   account_number   text not null,
   position         text not null,
-  company_name     text not null,
+  company_name     text,
+  company_id       uuid references companies(id),
+  pan_number       text,
   email            text not null,
   created_at       timestamptz default now(),
   updated_at       timestamptz default now()
 );
+
+-- Migrations for existing deployments (safe to run multiple times)
+alter table employees add column if not exists company_id  uuid references companies(id);
+alter table employees add column if not exists pan_number  text;
+alter table employees alter column company_name drop not null;
 
 create trigger employees_updated_at
   before update on employees
