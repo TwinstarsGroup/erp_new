@@ -134,6 +134,25 @@ async function generatePayslipPDF() {
   const pdfBlob = await _buildPDFBlob(d);
   const filename = `${d.empName.replace(/\s+/g, '')}_${d.periodFilename}.pdf`;
 
+  // Company address above footer strip
+doc.setFont('helvetica', 'normal');
+doc.setFontSize(8);
+doc.setTextColor(100, 116, 139);
+
+doc.text(
+  `${d.companyName || 'Twinstar Group'}, 94/6 Model House Street, Basavanagudi, Bangalore 560004`,
+  pageW / 2,
+  pageH - stripH - 8,
+  { align: 'center' }
+);
+
+doc.text(
+  'admin@twinstarsgroup.com',
+  pageW / 2,
+  pageH - stripH - 4,
+  { align: 'center' }
+);
+
   // Trigger download
   const url = URL.createObjectURL(pdfBlob);
   const a   = document.createElement('a');
