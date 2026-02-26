@@ -10,6 +10,7 @@
 </head>
 <body>
 <div class="app-layout">
+  <div class="sidebar-overlay" onclick="closeSidebar()"></div>
 
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
@@ -48,7 +49,7 @@
       <div class="nav-section-label">HR</div>
       <a class="nav-link" data-page="create-employee-tse.html" href="create-employee-tse.html">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        Create Employee TSE
+        Create Employee
       </a>
       <a class="nav-link" data-page="generate-payslip.html" href="generate-payslip.html">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
@@ -74,6 +75,15 @@
   <!-- Main Content -->
   <div class="main-content">
     <header class="topbar">
+  <div style="display:flex; align-items:center; gap:10px;">
+    <button class="hamburger" type="button" onclick="toggleSidebar()" aria-label="Open menu">
+      <!-- icon -->
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="4" y1="6" x2="20" y2="6"></line>
+        <line x1="4" y1="12" x2="20" y2="12"></line>
+        <line x1="4" y1="18" x2="20" y2="18"></line>
+      </svg>
+    </button>
       <div class="topbar-title">Dashboard</div>
       <div class="topbar-actions">
         <span id="current-date" style="font-size:.85rem;color:#64748b;"></span>
@@ -167,6 +177,26 @@
         </div>
       </div>
 
+      <div class="card">
+  <div class="card-body">
+    <div class="feature-card">
+      <h3>Create Employee</h3>
+      <p>Add a new employee profile</p>
+      <a class="btn btn-primary" href="create-employee-tse.html">Create Employee</a>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="feature-card">
+      <h3>Generate Payslip</h3>
+      <p>Create PDF and email to employee</p>
+      <a class="btn btn-primary" href="generate-payslip.html">Generate Payslip</a>
+    </div>
+  </div>
+</div>
+
       <!-- Recent Activity -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
 
@@ -219,6 +249,9 @@
     if (!session) return;
     populateSidebarUser(session);
     setActiveNav();
+
+    wireSidebarAutoClose();
+    wireSidebarEscapeClose(); // optional
 
     document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-IN', {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
