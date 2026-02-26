@@ -71,8 +71,43 @@ function isoDate(d) {
   return d.toISOString().slice(0, 10);
 }
 
-/** Zero-padded string from a number */
+/** Zero-padded string from a number (always 4 digits, e.g. 7 → "0007") */
 function pad(n) { return String(n).padStart(4, '0'); }
+
+/**
+ * Convert a numeric amount to words (INR format).
+ * Mirrors the numberToWords() function used in the browser (js/common.js).
+ * Used to auto-generate amount_words when not provided in voucher-rules.json.
+ */
+function numberToWords(num) {
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen',
+    'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  if (isNaN(num) || num < 0) return '';
+  num = Math.round(num * 100) / 100;
+  const [intPart, decPart] = String(num).split('.');
+
+  function convert(n) {
+    n = parseInt(n);
+    if (n === 0) return '';
+    if (n < 20)  return ones[n];
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+    if (n < 1000) return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + convert(n % 100) : '');
+    if (n < 100000) return convert(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 ? ' ' + convert(n % 1000) : '');
+    if (n < 10000000) return convert(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 ? ' ' + convert(n % 100000) : '');
+    return convert(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 ? ' ' + convert(n % 10000000) : '');
+  }
+
+  let words = convert(parseInt(intPart)) || 'Zero';
+  words += ' Rupees';
+  if (decPart && parseInt(decPart) > 0) {
+    const paiseStr = decPart.length === 1 ? decPart + '0' : decPart.slice(0, 2);
+    words += ' and ' + convert(parseInt(paiseStr, 10)) + ' Paise';
+  }
+  return words + ' Only';
+}
 
 /** Minimal HTTP request to Supabase REST API */
 function supabaseRequest(method, table, body, params) {
@@ -204,8 +239,8 @@ async function main() {
         payee:          rule.payee || 'System',
         payment_mode:   rule.payment_mode || 'Cash',
         amount:         rule.amount || 0,
-        amount_words:   rule.amount_words || '',
-        purpose:        rule.purpose || `Auto-generated: ${rule.type}`,
+        amount_words:   rule.amount_words || numberToWords(rule.amount || 0),
+        purpose:        rule.purpose || `Auto-generated ${rule.schedule} voucher`,
         notes:          `Batch generated — schedule: ${rule.schedule}, period: ${periodLabel}`,
         approved_by:    rule.approved_by || null,
         schedule_key:   key,

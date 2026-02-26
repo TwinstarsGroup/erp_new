@@ -1,5 +1,6 @@
 {
   "_comment": "Voucher rules for batch-vouchers.js. Edit this file to add/remove/change rules.",
+  "_amount_words_note": "amount_words is optional — auto-generated from amount if omitted.",
   "_supabase_note": "Prefer setting SUPABASE_URL and SUPABASE_SERVICE_KEY as environment variables instead of here.",
 
   "supabase_url": "",
@@ -17,7 +18,6 @@
       "payee":        "Office Expenses",
       "payment_mode": "Cash",
       "amount":       5000,
-      "amount_words": "Five Thousand Rupees Only",
       "purpose":      "Monthly office running expenses",
       "approved_by":  null
     },
@@ -32,7 +32,6 @@
       "payee":        "Petty Cash Fund",
       "payment_mode": "Cash",
       "amount":       2000,
-      "amount_words": "Two Thousand Rupees Only",
       "purpose":      "Monthly petty cash replenishment",
       "approved_by":  null
     },
@@ -46,7 +45,6 @@
       "payee":        "Miscellaneous",
       "payment_mode": "Cash",
       "amount":       1000,
-      "amount_words": "One Thousand Rupees Only",
       "purpose":      "Weekly Friday miscellaneous expenses",
       "approved_by":  null
     }
