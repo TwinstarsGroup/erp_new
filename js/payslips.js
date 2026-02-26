@@ -57,6 +57,7 @@ async function loadEmployeeDropdown() {
         data-empid="${escapeHtml(e.emp_id)}"
         data-email="${escapeHtml(e.email || '')}"
         data-account="${escapeHtml(e.account_number || '')}"
+        data-pan="${escapeHtml(e.pan_number || '')}"
         data-company="${escapeHtml(companyName)}"
       >${escapeHtml(e.emp_name)} (${escapeHtml(e.emp_id)})</option>`;
     }).join('');
@@ -104,6 +105,7 @@ function _buildPayslipData() {
   const empCode       = opt.dataset.empid;
   const empEmail      = opt.dataset.email;
   const accountNumber = opt.dataset.account || '';
+  const panNumber     = opt.dataset.pan || '';
   const companyName   = opt.dataset.company || 'Twinstar Group';
   const rawPeriod     = document.getElementById('salary-period').value; // YYYY-MM
   const issueDate     = document.getElementById('date-of-issue').value;
@@ -120,7 +122,7 @@ function _buildPayslipData() {
   const periodFilename = _formatPeriodFilename(rawPeriod);  // "February-2026"
   const net = Math.max(0, basic + hra + allowances - deductions);
 
-  return { empId, empName, empCode, empEmail, accountNumber, companyName, period, periodFilename, issueDate, basic, hra, allowances, deductions, net };
+  return { empId, empName, empCode, empEmail, accountNumber, panNumber, companyName, period, periodFilename, issueDate, basic, hra, allowances, deductions, net };
 }
 
 // ── Generate PDF ──────────────────────────────────────────────────────────
@@ -172,8 +174,8 @@ async function _buildPDFBlob(d) {
   const pageH  = doc.internal.pageSize.getHeight();
   const stripH = 3.5; // ~10pt header/footer strips
 
-  // Table occupies 80% of page width, centered
-  const tableW = pageW * 0.8;
+  // Table occupies 65% of page width, centered
+  const tableW = pageW * 0.65;
   const tableX = (pageW - tableW) / 2;
 
   // Load logo
@@ -235,6 +237,10 @@ async function _buildPDFBlob(d) {
   y += 6;
   if (d.accountNumber) {
     doc.text('Account Number: ' + d.accountNumber, pageW / 2, y, { align: 'center' });
+    y += 6;
+  }
+  if (d.panNumber) {
+    doc.text('PAN Number: ' + d.panNumber, pageW / 2, y, { align: 'center' });
     y += 6;
   }
   y += 4;
@@ -370,6 +376,7 @@ async function _downloadPayslipFromRecord(p) {
     empCode:        emp.emp_id    || '',
     empEmail:       emp.email     || '',
     accountNumber:  emp.account_number || '',
+    panNumber:      emp.pan_number || '',
     companyName,
     period:         p.period,
     periodFilename,
@@ -409,7 +416,7 @@ async function fetchPayslips() {
 
   let query = supabaseClient
     .from('payslips')
-    .select('*, employees(emp_name, emp_id, email, account_number, companies(name))')
+    .select('*, employees(emp_name, emp_id, email, account_number, pan_number, companies(name))')
     .gte('issue_date', sixMonthsAgoISO)
     .order('created_at', { ascending: false })
     .limit(50);
