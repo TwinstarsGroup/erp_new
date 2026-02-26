@@ -37,7 +37,7 @@ function populateSidebarUser(session) {
   const name   = document.getElementById('user-name');
   const email  = document.getElementById('user-email');
 
-  if (avatar) avatar.src = user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.email)}&background=2563eb&color=fff`;
+  if (avatar) avatar.src = user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.email)}&background=800020&color=fff`;
   if (name)   name.textContent  = user.user_metadata?.full_name || user.email.split('@')[0];
   if (email)  email.textContent = user.email;
 }

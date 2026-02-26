@@ -180,4 +180,115 @@ supabase functions deploy send-payslip --no-verify-jwt
 
 The sender address is hardcoded as `admin@twinstarsgroup.com` inside the Edge Function. Ensure this address is verified/authorised by your email provider (Resend, SendGrid, etc.).
 
+## Branding & Theme
+
+The UI uses the **Twinstar Group logo palette**: Maroon (`#800020`), Golden Yellow (`#C8960C`), and White (`#ffffff`).
+
+All theme tokens are centralized in `css/style.css` as CSS custom properties (`--primary`, `--primary-dark`, `--primary-light`, `--accent`, etc.). To adjust shades, edit the `:root` block in `style.css`.
+
+Company name, address and email shown in the sidebar are configured in `js/config.js` under `COMPANY_INFO`:
+
+```js
+const COMPANY_INFO = {
+  name:    'Twinstar Group',
+  address: 'Mumbai, Maharashtra, India',
+  email:   'admin@twinstarsgroup.com'
+};
+```
+
+## Batch Voucher Generation
+
+The script `scripts/batch-vouchers.js` generates vouchers automatically for two schedules:
+
+- **Monthly vouchers** — created on the 1st of each month
+- **Friday vouchers** — created every Friday
+
+### Prerequisites
+
+Node.js ≥ 18 (uses built-in `https` module — no `npm install` required).
+
+A **service-role key** from your Supabase project (Settings → API → `service_role` — keep this secret, never commit it).
+
+### Running locally
+
+```bash
+# Set environment variables (Linux/macOS)
+export SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+export SUPABASE_SERVICE_KEY=your-service-role-key
+
+# Run the script
+node scripts/batch-vouchers.js
+```
+
+On Windows (PowerShell):
+
+```powershell
+$env:SUPABASE_URL="https://YOUR_PROJECT_REF.supabase.co"
+$env:SUPABASE_SERVICE_KEY="your-service-role-key"
+node scripts/batch-vouchers.js
+```
+
+### Scheduling in production
+
+Add a **daily cron job** that runs at 06:00 AM. The script checks the day internally and only creates vouchers when the schedule applies.
+
+```cron
+# crontab -e
+0 6 * * * SUPABASE_URL=https://... SUPABASE_SERVICE_KEY=... /usr/bin/node /var/www/erp_new/scripts/batch-vouchers.js >> /var/log/erp-vouchers.log 2>&1
+```
+
+Or use a `.env` file + a wrapper script to keep credentials out of crontab.
+
+### Configuring rules
+
+Edit `scripts/voucher-rules.json` to add, remove, or change voucher types — **no code changes required**:
+
+```json
+{
+  "voucher_rules": [
+    {
+      "type":         "monthly-office-expenses",
+      "schedule_key": "monthly-office-expenses",
+      "schedule":     "monthly",
+      "day_of_month": 1,
+      "enabled":      true,
+      "payee":        "Office Expenses",
+      "amount":       5000
+    },
+    {
+      "type":         "friday-misc-expenses",
+      "schedule_key": "friday-misc-expenses",
+      "schedule":     "friday",
+      "enabled":      true,
+      "payee":        "Miscellaneous",
+      "amount":       1000
+    }
+  ]
+}
+```
+
+| Field | Description |
+|---|---|
+| `schedule` | `"monthly"` or `"friday"` |
+| `day_of_month` | Day to generate (monthly only; defaults to 1) |
+| `enabled` | Set to `false` to disable a rule without deleting it |
+| `schedule_key` | Unique identifier used for idempotency checks |
+| `payee` | Recipient shown on the voucher |
+| `amount` | Voucher amount in INR |
+| `purpose` | Description / narration on the voucher |
+
+### Idempotency
+
+The script queries for an existing voucher with the same `schedule_key` **and** `period_label` (e.g. `2025-01` for a January monthly voucher) before inserting. Re-running the script on the same day will produce no duplicates.
+
+### Database migration
+
+Run the following to add the required columns to existing deployments (already included in `sql/schema.sql`):
+
+```sql
+alter table cash_vouchers add column if not exists schedule_key text;
+alter table cash_vouchers add column if not exists period_label  text;
+alter table cash_vouchers add column if not exists is_batch      boolean default false;
+```
+
 
