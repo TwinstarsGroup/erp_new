@@ -135,6 +135,33 @@ function setActiveNav() {
   });
 }
 
+// ── Mobile sidebar toggle helpers ─────────────────────────────────────────
+function openSidebar() {
+  document.body.classList.add('sidebar-open');
+}
+
+function closeSidebar() {
+  document.body.classList.remove('sidebar-open');
+}
+
+function toggleSidebar() {
+  document.body.classList.toggle('sidebar-open');
+}
+
+// Close sidebar when clicking a nav link (mobile UX)
+function wireSidebarAutoClose() {
+  document.querySelectorAll('.sidebar .nav-link').forEach(a => {
+    a.addEventListener('click', () => closeSidebar());
+  });
+}
+
+// Optional: close on Escape key
+function wireSidebarEscapeClose() {
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeSidebar();
+  });
+}
+
 // ── HTML escape helper ────────────────────────────────────────────────────
 function escapeHtml(str) {
   return String(str)
