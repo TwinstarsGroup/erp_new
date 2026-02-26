@@ -125,7 +125,7 @@ function _buildPayslipData() {
   return { empId, empName, empCode, empEmail, accountNumber, panNumber, companyName, period, periodFilename, issueDate, basic, hra, allowances, deductions, net };
 }
 
-// ── Generate PDF ──────────────────────────────────────────────────────────
+/*// ── Generate PDF ──────────────────────────────────────────────────────────
 async function generatePayslipPDF() {
   const d = _buildPayslipData();
   if (!d) return;
@@ -165,6 +165,84 @@ doc.text(
   await _savePayslipRecord(d, null);
   showToast('PDF downloaded: ' + filename, 'success');
   await fetchPayslips();
+} */
+
+// ── Generate PDF ──────────────────────────────────────────────────────────
+async function generatePayslipPDF() {
+  const d = _buildPayslipData();
+  if (!d) return;
+  _currentPayslipData = d;
+
+  const pdfBlob = await _buildPDFBlob(d);
+  const filename = `${d.empName.replace(/\s+/g, '')}_${d.periodFilename}.pdf`;
+
+  // Trigger download
+  const url = URL.createObjectURL(pdfBlob);
+  const a   = document.createElement('a');
+  a.href     = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  // Persist to Supabase
+  await _savePayslipRecord(d, null);
+  showToast('PDF downloaded: ' + filename, 'success');
+  await fetchPayslips();
+}
+
+
+// ── Build PDF blob using jsPDF ────────────────────────────────────────────
+async function _buildPDFBlob(d) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+  const pageW  = doc.internal.pageSize.getWidth();
+  const pageH  = doc.internal.pageSize.getHeight();
+  const stripH = 3.5; // ~10pt header/footer strips
+
+  // ... your existing code (watermark, blue top strip, etc.)
+
+  // ── Blue top strip ────────────────────────────────────────────────────
+  doc.setFillColor(0, 70, 180);
+  doc.rect(0, 0, pageW, stripH, 'F');
+
+  // ✅ Company address ABOVE the maroon strip (center aligned)
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(100, 116, 139);
+
+  doc.text(
+    `${d.companyName || 'Twinstar Group'}, 94/6 Model House Street, Basavanagudi, Bangalore 560004`,
+    pageW / 2,
+    pageH - stripH - 8,
+    { align: 'center' }
+  );
+
+  doc.text(
+    'admin@twinstarsgroup.com',
+    pageW / 2,
+    pageH - stripH - 4,
+    { align: 'center' }
+  );
+
+  // ── Maroon bottom strip ───────────────────────────────────────────────
+  doc.setFillColor(128, 0, 0);
+  doc.rect(0, pageH - stripH, pageW, stripH, 'F');
+
+  // Footer disclaimer text in maroon strip
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(255, 255, 255);
+  doc.text(
+    'This is a system generated document. Signature not required.',
+    pageW / 2, pageH - stripH / 2 + 1,
+    { align: 'center' }
+  );
+  doc.setTextColor(0, 0, 0);
+
+  // ... rest of your existing PDF content
+
+  return doc.output('blob');
 }
 
 // ── Load an image URL and return a data URL (for jsPDF embedding) ─────────
