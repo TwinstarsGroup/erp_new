@@ -14,7 +14,12 @@
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
-      <img src="images/logo200.png" alt="Admin Console" style="height:38px;opacity:.95;" />
+      <img src="images/logo200.png" alt="Twinstar Group" style="height:38px;opacity:.95;" />
+      <div class="sidebar-company-info" id="sidebar-company-info">
+        <div class="company-name">Twinstar Group</div>
+        <span class="company-detail">Mumbai, Maharashtra, India</span>
+        <span class="company-detail">admin@twinstarsgroup.com</span>
+      </div>
     </div>
 
     <nav class="sidebar-nav">
@@ -53,7 +58,7 @@
 
     <div class="sidebar-footer">
       <div class="sidebar-user">
-        <img id="user-avatar" src="https://ui-avatars.com/api/?name=Admin&background=2563eb&color=fff" alt="User" />
+        <img id="user-avatar" src="https://ui-avatars.com/api/?name=Admin&background=800020&color=fff" alt="User" />
         <div>
           <div class="user-name" id="user-name">Admin</div>
           <div class="user-role" id="user-email">Loading…</div>
@@ -248,7 +253,7 @@
     el.innerHTML = `<div class="table-container"><table>
       <thead><tr><th>Receipt #</th><th>Customer</th><th>Date</th><th>Total</th></tr></thead>
       <tbody>${data.map(r => `<tr>
-        <td><a href="receipts.html?id=${r.id}" style="color:#2563eb;font-weight:600;">${r.receipt_number}</a></td>
+        <td><a href="receipts.html?id=${r.id}" style="color:#800020;font-weight:600;">${r.receipt_number}</a></td>
         <td>${r.customer_name}</td>
         <td>${formatDate(r.date)}</td>
         <td style="font-weight:600;">${formatCurrency(r.total)}</td>
@@ -264,7 +269,7 @@
     el.innerHTML = `<div class="table-container"><table>
       <thead><tr><th>Voucher #</th><th>Payee</th><th>Date</th><th>Amount</th></tr></thead>
       <tbody>${data.map(v => `<tr>
-        <td><a href="vouchers.html?id=${v.id}" style="color:#2563eb;font-weight:600;">${v.voucher_number}</a></td>
+        <td><a href="vouchers.html?id=${v.id}" style="color:#800020;font-weight:600;">${v.voucher_number}</a></td>
         <td>${v.payee}</td>
         <td>${formatDate(v.date)}</td>
         <td style="font-weight:600;">${formatCurrency(v.amount)}</td>

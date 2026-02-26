@@ -1,9 +1,13 @@
 /* ERP Application - Main Stylesheet */
 
 :root {
-  --primary: #2563eb;
-  --primary-dark: #1d4ed8;
-  --primary-light: #dbeafe;
+  /* Brand palette: Maroon / Golden Yellow / White */
+  --primary: #800020;          /* Maroon */
+  --primary-dark: #5C0015;     /* Dark maroon (hover/active) */
+  --primary-light: #fceaed;    /* Light maroon tint */
+  --accent: #C8960C;           /* Golden yellow */
+  --accent-dark: #9A6F00;      /* Dark golden (hover) */
+  --accent-light: #FEF3C7;     /* Light golden tint */
   --secondary: #64748b;
   --success: #16a34a;
   --danger: #dc2626;
@@ -13,6 +17,9 @@
   --border: #e2e8f0;
   --text: #1e293b;
   --text-muted: #64748b;
+  --sidebar-bg: #2D0010;       /* Dark maroon sidebar */
+  --sidebar-hover: #4A0020;    /* Sidebar hover */
+  --sidebar-border: #4A0020;   /* Sidebar dividers */
   --sidebar-width: 240px;
   --shadow: 0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.08);
   --shadow-md: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -1px rgba(0,0,0,.06);
@@ -37,7 +44,7 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #3b82f6 100%);
+  background: linear-gradient(135deg, #5C0015 0%, #800020 50%, #9B2335 100%);
 }
 
 .login-card {
@@ -114,7 +121,7 @@ a { text-decoration: none; color: inherit; }
 /* ── Sidebar ────────────────────────────────────────── */
 .sidebar {
   width: var(--sidebar-width);
-  background: #0f172a;
+  background: var(--sidebar-bg);
   color: #94a3b8;
   display: flex;
   flex-direction: column;
@@ -126,8 +133,27 @@ a { text-decoration: none; color: inherit; }
 }
 
 .sidebar-brand {
-  padding: 24px 20px 20px;
-  border-bottom: 1px solid #1e293b;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--sidebar-border);
+}
+
+.sidebar-company-info {
+  margin-top: 10px;
+  font-size: .7rem;
+  color: #c9a05a;
+  line-height: 1.5;
+}
+
+.sidebar-company-info .company-name {
+  font-size: .8rem;
+  font-weight: 700;
+  color: #C8960C;
+  margin-bottom: 2px;
+}
+
+.sidebar-company-info .company-detail {
+  color: #b08d57;
+  display: block;
 }
 
 .sidebar-brand .brand-name {
@@ -167,13 +193,13 @@ a { text-decoration: none; color: inherit; }
   cursor: pointer;
 }
 
-.nav-link:hover { background: #1e293b; color: #e2e8f0; }
-.nav-link.active { background: #1d4ed8; color: #fff; }
+.nav-link:hover { background: var(--sidebar-hover); color: #e2e8f0; }
+.nav-link.active { background: var(--primary); color: #fff; }
 .nav-link svg { flex-shrink: 0; opacity: .8; }
 
 .sidebar-footer {
   padding: 16px 20px;
-  border-top: 1px solid #1e293b;
+  border-top: 1px solid var(--sidebar-border);
 }
 
 .sidebar-user {
@@ -204,7 +230,7 @@ a { text-decoration: none; color: inherit; }
 .btn-logout {
   width: 100%;
   padding: 8px 12px;
-  background: #1e293b;
+  background: var(--sidebar-hover);
   border: none;
   border-radius: var(--radius);
   color: #94a3b8;
@@ -336,8 +362,8 @@ a { text-decoration: none; color: inherit; }
   flex-shrink: 0;
 }
 
-.stat-icon.blue { background: #dbeafe; color: #2563eb; }
-.stat-icon.green { background: #dcfce7; color: #16a34a; }
+.stat-icon.blue { background: var(--primary-light); color: var(--primary); }
+.stat-icon.green { background: var(--accent-light); color: var(--accent); }
 .stat-icon.orange { background: #ffedd5; color: #ea580c; }
 .stat-icon.purple { background: #f3e8ff; color: #9333ea; }
 
@@ -382,7 +408,7 @@ a { text-decoration: none; color: inherit; }
 
 .form-control:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+  box-shadow: 0 0 0 3px rgba(128,0,32,.15);
 }
 
 select.form-control { cursor: pointer; }
@@ -522,7 +548,7 @@ tbody tr:hover { background: #f8fafc; }
 
 .file-badge.pdf { background: #fee2e2; color: #dc2626; }
 .file-badge.img { background: #dcfce7; color: #16a34a; }
-.file-badge.doc { background: #dbeafe; color: #2563eb; }
+.file-badge.doc { background: var(--primary-light); color: var(--primary); }
 .file-badge.xls { background: #ecfccb; color: #65a30d; }
 
 /* ── Badge / Status ──────────────────────────────────── */
@@ -537,7 +563,7 @@ tbody tr:hover { background: #f8fafc; }
 
 .badge-success { background: #dcfce7; color: #16a34a; }
 .badge-warning { background: #fef3c7; color: #b45309; }
-.badge-info { background: #dbeafe; color: #2563eb; }
+.badge-info { background: var(--primary-light); color: var(--primary); }
 .badge-danger { background: #fee2e2; color: #dc2626; }
 
 /* ── Alerts / Toasts ─────────────────────────────────── */

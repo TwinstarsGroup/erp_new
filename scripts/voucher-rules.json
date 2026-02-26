@@ -1,0 +1,52 @@
+{
+  "_comment": "Voucher rules for batch-vouchers.js. Edit this file to add/remove/change rules.",
+  "_amount_words_note": "amount_words is optional — auto-generated from amount if omitted.",
+  "_supabase_note": "Prefer setting SUPABASE_URL and SUPABASE_SERVICE_KEY as environment variables instead of here.",
+
+  "supabase_url": "",
+  "supabase_service_key": "",
+
+  "voucher_rules": [
+    {
+      "_comment": "Monthly voucher: generated on the 1st of every month",
+      "type":         "monthly-office-expenses",
+      "schedule_key": "monthly-office-expenses",
+      "schedule":     "monthly",
+      "day_of_month": 1,
+      "enabled":      true,
+      "prefix":       "CV",
+      "payee":        "Office Expenses",
+      "payment_mode": "Cash",
+      "amount":       5000,
+      "purpose":      "Monthly office running expenses",
+      "approved_by":  null
+    },
+    {
+      "_comment": "Monthly voucher: petty cash replenishment on the 1st",
+      "type":         "monthly-petty-cash",
+      "schedule_key": "monthly-petty-cash",
+      "schedule":     "monthly",
+      "day_of_month": 1,
+      "enabled":      true,
+      "prefix":       "CV",
+      "payee":        "Petty Cash Fund",
+      "payment_mode": "Cash",
+      "amount":       2000,
+      "purpose":      "Monthly petty cash replenishment",
+      "approved_by":  null
+    },
+    {
+      "_comment": "Friday voucher: weekly miscellaneous expenses every Friday",
+      "type":         "friday-misc-expenses",
+      "schedule_key": "friday-misc-expenses",
+      "schedule":     "friday",
+      "enabled":      true,
+      "prefix":       "CV",
+      "payee":        "Miscellaneous",
+      "payment_mode": "Cash",
+      "amount":       1000,
+      "purpose":      "Weekly Friday miscellaneous expenses",
+      "approved_by":  null
+    }
+  ]
+}

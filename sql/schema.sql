@@ -50,6 +50,10 @@ create table if not exists cash_vouchers (
   reference      text,
   approved_by    text,
   notes          text,
+  -- Batch generation metadata (used by scripts/batch-vouchers.js)
+  schedule_key   text,       -- identifies the rule that created this voucher
+  period_label   text,       -- e.g. "2025-01" for monthly or "2025-01-17" for Friday
+  is_batch       boolean default false,
   created_at     timestamptz default now(),
   updated_at     timestamptz default now()
 );
@@ -57,6 +61,11 @@ create table if not exists cash_vouchers (
 create trigger cash_vouchers_updated_at
   before update on cash_vouchers
   for each row execute function update_updated_at();
+
+-- Migrations for existing deployments (safe to run multiple times)
+alter table cash_vouchers add column if not exists schedule_key text;
+alter table cash_vouchers add column if not exists period_label  text;
+alter table cash_vouchers add column if not exists is_batch      boolean default false;
 
 -- ── Attachments ───────────────────────────────────────────────
 create table if not exists attachments (

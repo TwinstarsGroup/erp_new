@@ -21,7 +21,7 @@ function showToast(message, type = 'info', duration = 3500) {
 
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  toast.style.color = type === 'success' ? '#16a34a' : type === 'error' ? '#dc2626' : type === 'warning' ? '#d97706' : '#2563eb';
+  toast.style.color = type === 'success' ? '#16a34a' : type === 'error' ? '#dc2626' : type === 'warning' ? '#d97706' : '#800020';
   toast.innerHTML = `${icons[type] || icons.info}<span style="color:#1e293b;font-size:.875rem;">${message}</span>`;
   container.appendChild(toast);
 

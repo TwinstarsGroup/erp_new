@@ -56,7 +56,7 @@ function renderReceiptList() {
     </tr></thead>
     <tbody>
       ${receipts.map(r => `<tr>
-        <td style="font-weight:600;color:#2563eb;">${r.receipt_number}</td>
+        <td style="font-weight:600;color:#800020;">${r.receipt_number}</td>
         <td>${formatDate(r.date)}</td>
         <td>${r.customer_name}</td>
         <td>${r.customer_phone || '—'}</td>
@@ -244,7 +244,7 @@ function renderReceiptModal(r) {
 
   document.getElementById('receipt-modal-content').innerHTML = `
     <div class="print-doc" id="printable-receipt" style="background:#fff;padding:32px;font-family:inherit;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;border-bottom:2px solid #2563eb;padding-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;border-bottom:2px solid #800020;padding-bottom:20px;">
         <div>
           <div style="font-size:1.5rem;font-weight:800;color:#1e293b;">Receipt</div>
           <div style="font-size:.9rem;color:#64748b;margin-top:4px;"># ${r.receipt_number}</div>
@@ -346,7 +346,7 @@ function renderReceiptAttachments() {
     const badgeCls = getFileBadgeClass(a.name);
     return `<div style="display:inline-flex;align-items:center;gap:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;font-size:.8rem;">
       <span class="file-badge ${badgeCls}">${ext}</span>
-      <a href="${escapeHtml(a.public_url)}" target="_blank" style="color:#2563eb;font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(a.name)}">${escapeHtml(a.name)}</a>
+      <a href="${escapeHtml(a.public_url)}" target="_blank" style="color:#800020;font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(a.name)}">${escapeHtml(a.name)}</a>
       <button type="button" class="btn-close" onclick="removeReceiptAttachment('${escapeHtml(a.id)}','${escapeHtml(a.file_path)}')" title="Remove">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
@@ -371,7 +371,7 @@ function _buildWatermarkDataURL() {
       const c = document.createElement('canvas');
       c.width = 200; c.height = 200;
       const ctx = c.getContext('2d');
-      ctx.globalAlpha = 0.15;
+      ctx.globalAlpha = 0.35;
       ctx.drawImage(img, 0, 0, 200, 200);
       resolve(c.toDataURL('image/png'));
     };
@@ -379,6 +379,22 @@ function _buildWatermarkDataURL() {
       console.error('Failed to load watermark image: images/logo200.png');
       resolve(document.createElement('canvas').toDataURL('image/png'));
     };
+    img.src = 'images/logo200.png';
+  });
+}
+
+function _buildLogoDataURL() {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth || 200;
+      c.height = img.naturalHeight || 200;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      resolve(c.toDataURL('image/png'));
+    };
+    img.onerror = () => resolve(null);
     img.src = 'images/logo200.png';
   });
 }
@@ -412,7 +428,7 @@ async function downloadReceiptPDF(r) {
   doc.addImage(wmDataURL, 'PNG', (pageW - 200) / 2, (pageH - 200) / 2, 200, 200);
 
   // ── Header bar ─────────────────────────────────────────
-  doc.setFillColor(37, 99, 235);
+  doc.setFillColor(128, 0, 32);
   doc.rect(margin, margin, contentW, 2, 'F');
 
   doc.setFontSize(22); doc.setFont('helvetica', 'bold');
@@ -423,16 +439,28 @@ async function downloadReceiptPDF(r) {
   doc.setTextColor(100, 116, 139);
   doc.text(`# ${r.receipt_number}`, margin, margin + 48);
 
-  doc.setFontSize(13); doc.setFont('helvetica', 'bold');
-  doc.setTextColor(37, 99, 235);
-  doc.text('ERP System', pageW - margin, margin + 32, { align: 'right' });
+  // ── Company name / logo in header ──────────────────────
+  const logoDataURL = await _buildLogoDataURL();
+  if (logoDataURL) {
+    doc.addImage(logoDataURL, 'PNG', pageW - margin - 60, margin + 4, 60, 30);
+  }
+  const company = (typeof COMPANY_INFO !== 'undefined') ? COMPANY_INFO : null;
+  const headerName = company ? company.name : 'Twinstar Group';
+  doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+  doc.setTextColor(128, 0, 32);
+  doc.text(headerName, pageW - margin, margin + 52, { align: 'right' });
+  if (company) {
+    doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text(company.email, pageW - margin, margin + 64, { align: 'right' });
+  }
 
   doc.setFontSize(10); doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139);
-  doc.text(`Date: ${formatDate(r.date)}`, pageW - margin, margin + 48, { align: 'right' });
+  doc.text(`Date: ${formatDate(r.date)}`, pageW - margin, margin + 76, { align: 'right' });
 
   // ── Bill To ────────────────────────────────────────────
-  let y = margin + 76;
+  let y = margin + 100;
   doc.setFontSize(9); doc.setFont('helvetica', 'bold');
   doc.setTextColor(148, 163, 184);
   doc.text('BILL TO', margin, y); y += 15;
