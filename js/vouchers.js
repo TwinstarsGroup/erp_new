@@ -7,6 +7,8 @@ let editingVoucherId = null;
 let nextVoucherNum   = 1;
 let voucherAttachments = [];
 let currentVoucherView = null;
+let selectedCompanyId   = null;
+let selectedCompanyName = '';
 
 // ── Initialise ────────────────────────────────────────────────────────────
 async function initVouchers() {
@@ -16,8 +18,8 @@ async function initVouchers() {
   setActiveNav();
 
   document.getElementById('voucher-date').value = todayISO();
+  await populateCompanyDropdown();
   await fetchVouchers();
-  await setNextVoucherNumber();
   initVoucherAttachments();
 
   // Watch amount field → update words
@@ -56,12 +58,13 @@ function renderVoucherList() {
   }
   el.innerHTML = `<div class="table-container"><table>
     <thead><tr>
-      <th>Voucher #</th><th>Date</th><th>Payee</th><th>Purpose</th>
+      <th>Voucher #</th><th>Company</th><th>Date</th><th>Payee</th><th>Purpose</th>
       <th>Payment Mode</th><th>Amount</th><th>Actions</th>
     </tr></thead>
     <tbody>
       ${vouchers.map(v => `<tr>
         <td style="font-weight:600;color:#800020;">${v.voucher_number}</td>
+        <td>${v.company_name || '—'}</td>
         <td>${formatDate(v.date)}</td>
         <td>${v.payee}</td>
         <td>${v.purpose || '—'}</td>
@@ -82,10 +85,49 @@ function renderVoucherList() {
   </table></div>`;
 }
 
+// ── Company dropdown ──────────────────────────────────────────────────────
+async function populateCompanyDropdown() {
+  const { data, error } = await supabaseClient.from('companies').select('id, name').order('name');
+  if (error || !data) return;
+  const sel = document.getElementById('voucher-company');
+  data.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.name;
+    sel.appendChild(opt);
+  });
+}
+
+function onVoucherCompanyChange() {
+  const sel = document.getElementById('voucher-company');
+  selectedCompanyId   = sel.value || null;
+  selectedCompanyName = sel.options[sel.selectedIndex]?.text || '';
+  if (selectedCompanyId) {
+    setNextVoucherNumber();
+  } else {
+    document.getElementById('voucher-number').value = '';
+  }
+}
+
 // ── Next number ───────────────────────────────────────────────────────────
 async function setNextVoucherNumber() {
-  const { count } = await supabaseClient.from('cash_vouchers').select('*', { count: 'exact', head: true });
-  nextVoucherNum = (count || 0) + 1;
+  if (!selectedCompanyId) {
+    document.getElementById('voucher-number').value = '';
+    return;
+  }
+  const { data } = await supabaseClient
+    .from('cash_vouchers')
+    .select('voucher_number')
+    .eq('company_id', selectedCompanyId)
+    .order('voucher_number', { ascending: false })
+    .limit(1);
+
+  let maxNum = 0;
+  if (data && data.length > 0) {
+    const match = (data[0].voucher_number || '').match(/(\d+)$/);
+    if (match) maxNum = parseInt(match[1], 10);
+  }
+  nextVoucherNum = maxNum + 1;
   document.getElementById('voucher-number').value = generateRef('CVR', nextVoucherNum);
 }
 
@@ -101,6 +143,10 @@ async function saveVoucher() {
   const approvedBy    = document.getElementById('voucher-approved-by').value.trim();
   const notes         = document.getElementById('voucher-notes').value.trim();
 
+  if (!editingVoucherId && !selectedCompanyId) {
+    showToast('Please select a company', 'warning');
+    return;
+  }
   if (!voucherNumber || !date || !payee || !amount) {
     showToast('Please fill in all required fields', 'warning');
     return;
@@ -119,6 +165,14 @@ async function saveVoucher() {
     notes
   };
 
+  // Include company fields only when creating a new voucher.
+  // On edit, company_id and voucher_number are locked to their original values
+  // to preserve the integrity of the per-company sequence and audit trail.
+  if (!editingVoucherId) {
+    payload.company_id   = selectedCompanyId;
+    payload.company_name = selectedCompanyName;
+  }
+
   showLoading(true);
   let error;
   if (editingVoucherId) {
@@ -130,9 +184,19 @@ async function saveVoucher() {
 
   if (error) { showToast('Save failed: ' + error.message, 'error'); return; }
   showToast(editingVoucherId ? 'Voucher updated!' : 'Voucher saved!', 'success');
+
+  // Preserve the company selection across saves for a smoother workflow
+  const savedCompanyId   = selectedCompanyId;
+  const savedCompanyName = selectedCompanyName;
   resetVoucherForm();
+  if (savedCompanyId) {
+    const sel = document.getElementById('voucher-company');
+    sel.value = savedCompanyId;
+    selectedCompanyId   = savedCompanyId;
+    selectedCompanyName = savedCompanyName;
+    await setNextVoucherNumber();
+  }
   await fetchVouchers();
-  await setNextVoucherNumber();
 }
 
 // ── Reset form ────────────────────────────────────────────────────────────
@@ -142,8 +206,11 @@ function resetVoucherForm() {
   document.getElementById('voucher-form').reset();
   document.getElementById('voucher-date').value = todayISO();
   document.getElementById('amount-words').textContent = '—';
+  // form.reset() resets the company select to empty; sync state accordingly
+  selectedCompanyId   = null;
+  selectedCompanyName = '';
+  document.getElementById('voucher-number').value = '';
   renderVoucherAttachments();
-  setNextVoucherNumber();
 }
 
 // ── Delete ────────────────────────────────────────────────────────────────
@@ -177,7 +244,7 @@ function renderVoucherModal(v) {
           <div style="font-size:.9rem;color:#64748b;"># ${v.voucher_number}</div>
         </div>
         <div style="text-align:right;">
-          <div style="font-size:1.1rem;font-weight:700;color:#800020;">Twinstar Group</div>
+          <div style="font-size:1.1rem;font-weight:700;color:#800020;">${v.company_name || 'Twinstar Group'}</div>
           <div style="font-size:.8rem;color:#64748b;">Date: ${formatDate(v.date)}</div>
         </div>
       </div>
