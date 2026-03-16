@@ -88,7 +88,12 @@ function renderVoucherList() {
 // ── Company dropdown ──────────────────────────────────────────────────────
 async function populateCompanyDropdown() {
   const { data, error } = await supabaseClient.from('companies').select('id, name').order('name');
-  if (error || !data) return;
+  if (error) {
+  console.error('Failed to load companies', error);
+  showToast('Failed to load companies: ' + error.message, 'error');
+  return;
+}
+if (!data) return;
   const sel = document.getElementById('voucher-company');
   data.forEach(c => {
     const opt = document.createElement('option');
