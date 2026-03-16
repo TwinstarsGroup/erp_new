@@ -143,13 +143,15 @@ function supabaseRequest(method, table, body, params) {
   });
 }
 
-/** Fetch the current max voucher number to derive the next one */
-async function getNextVoucherNumber() {
-  const rows = await supabaseRequest('GET', 'cash_vouchers', null, {
+/** Fetch the current max voucher number to derive the next one (per company) */
+async function getNextVoucherNumber(companyId) {
+  const params = {
     select: 'voucher_number',
     order:  'voucher_number.desc',
     limit:  '1'
-  });
+  };
+  if (companyId) params['company_id'] = `eq.${companyId}`;
+  const rows = await supabaseRequest('GET', 'cash_vouchers', null, params);
   if (!Array.isArray(rows) || rows.length === 0) return 1;
   const last = rows[0].voucher_number || '';
   const match = last.match(/(\d+)$/);
@@ -230,7 +232,7 @@ async function main() {
         continue;
       }
 
-      const nextNum = await getNextVoucherNumber();
+      const nextNum = await getNextVoucherNumber(rule.company_id || null);
       const voucherNumber = `${rule.prefix || 'CV'}-${pad(nextNum)}`;
 
       const payload = {
@@ -243,6 +245,8 @@ async function main() {
         purpose:        rule.purpose || `Auto-generated ${rule.schedule} voucher`,
         notes:          `Batch generated — schedule: ${rule.schedule}, period: ${periodLabel}`,
         approved_by:    rule.approved_by || null,
+        company_id:     rule.company_id   || null,
+        company_name:   rule.company_name || null,
         schedule_key:   key,
         period_label:   periodLabel,
         is_batch:       true

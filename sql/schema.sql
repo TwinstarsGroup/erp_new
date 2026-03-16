@@ -40,7 +40,7 @@ create trigger receipts_updated_at
 -- ── Cash Vouchers ─────────────────────────────────────────────
 create table if not exists cash_vouchers (
   id             uuid primary key default gen_random_uuid(),
-  voucher_number text not null unique,
+  voucher_number text not null,
   date           date not null,
   payee          text not null,
   amount         numeric(12,2) not null,
@@ -50,12 +50,17 @@ create table if not exists cash_vouchers (
   reference      text,
   approved_by    text,
   notes          text,
+  -- Company association (voucher numbering is per company)
+  company_id     uuid references companies(id),
+  company_name   text,
   -- Batch generation metadata (used by scripts/batch-vouchers.js)
   schedule_key   text,       -- identifies the rule that created this voucher
   period_label   text,       -- e.g. "2025-01" for monthly or "2025-01-17" for Friday
   is_batch       boolean default false,
   created_at     timestamptz default now(),
-  updated_at     timestamptz default now()
+  updated_at     timestamptz default now(),
+  -- Voucher number is unique per company (not globally)
+  unique(company_id, voucher_number)
 );
 
 create trigger cash_vouchers_updated_at
@@ -63,9 +68,20 @@ create trigger cash_vouchers_updated_at
   for each row execute function update_updated_at();
 
 -- Migrations for existing deployments (safe to run multiple times)
-alter table cash_vouchers add column if not exists schedule_key text;
+alter table cash_vouchers add column if not exists schedule_key  text;
 alter table cash_vouchers add column if not exists period_label  text;
 alter table cash_vouchers add column if not exists is_batch      boolean default false;
+alter table cash_vouchers add column if not exists company_id    uuid references companies(id);
+alter table cash_vouchers add column if not exists company_name  text;
+-- Replace the global unique on voucher_number with a per-company unique index.
+-- The old constraint is named cash_vouchers_voucher_number_key.
+alter table cash_vouchers drop constraint if exists cash_vouchers_voucher_number_key;
+-- Enforce uniqueness of voucher_number within each company.
+-- Rows with company_id IS NULL (legacy/batch without company) are excluded from
+-- this constraint; those are managed by the batch script's own idempotency check.
+create unique index if not exists cash_vouchers_company_voucher_unique
+  on cash_vouchers (company_id, voucher_number)
+  where company_id is not null;
 
 -- ── Attachments ───────────────────────────────────────────────
 create table if not exists attachments (
