@@ -10,6 +10,30 @@ let currentVoucherView = null;
 let selectedCompanyId   = null;
 let selectedCompanyName = '';
 
+function companyInitials(name) {
+  if (!name) return 'NA';
+
+  const parts = String(name)
+    .replace(/[^a-zA-Z0-9\s]/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  const skip = new Set(['PVT', 'PRIVATE', 'LTD', 'LIMITED', 'LLP', 'INC', 'CO', 'COMPANY', 'THE']);
+  const meaningful = parts.filter(p => !skip.has(p.toUpperCase()));
+
+  if (!meaningful.length) return 'NA';
+
+  // Special rule for "Twinstar ..." → TS + next meaningful word's initial
+  if (meaningful[0].toUpperCase() === 'TWINSTAR') {
+    const next = meaningful[1] || meaningful[0];
+    return ('TS' + next[0].toUpperCase());
+  }
+
+  // Fallback: first letters of up to 3 meaningful words
+  return meaningful.slice(0, 3).map(w => w[0].toUpperCase()).join('');
+}
+
 // ── Initialise ────────────────────────────────────────────────────────────
 async function initVouchers() {
   const session = await requireAuth();
@@ -133,7 +157,8 @@ async function setNextVoucherNumber() {
     if (match) maxNum = parseInt(match[1], 10);
   }
   nextVoucherNum = maxNum + 1;
-  document.getElementById('voucher-number').value = generateRef('CVR', nextVoucherNum);
+  const init = companyInitials(selectedCompanyName);
+  document.getElementById('voucher-number').value = `CVR-${init}-${String(nextVoucherNum).padStart(4, '0')}`;
 }
 
 // ── Save voucher ──────────────────────────────────────────────────────────
