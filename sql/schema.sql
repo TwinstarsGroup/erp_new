@@ -6,10 +6,27 @@
 -- ── Enable UUID extension ────────────────────────────────────
 create extension if not exists "pgcrypto";
 
+-- ── Companies ─────────────────────────────────────────────────
+create table if not exists companies (
+  id    uuid primary key default gen_random_uuid(),
+  name  text not null unique
+);
+
+alter table companies enable row level security;
+
+create policy "Authenticated full access on companies" on companies
+  for all to authenticated using (true) with check (true);
+
+-- Seed the two required companies
+insert into companies (name) values
+  ('Twinstar Entertainers LLP'),
+  ('Twinstar Datalytiks LLP')
+on conflict (name) do nothing;
+
 -- ── Receipts ──────────────────────────────────────────────────
 create table if not exists receipts (
   id              uuid primary key default gen_random_uuid(),
-  receipt_number  text not null unique,
+  receipt_number  text not null,
   date            date not null,
   customer_name   text not null,
   customer_phone  text,
@@ -20,6 +37,9 @@ create table if not exists receipts (
   tax_amount      numeric(12,2) not null default 0,
   total           numeric(12,2) not null default 0,
   notes           text,
+  -- Company association (receipt numbering is per company)
+  company_id      uuid references companies(id),
+  company_name    text,
   created_at      timestamptz default now(),
   updated_at      timestamptz default now()
 );
@@ -129,23 +149,6 @@ create policy "Authenticated full access on attachments" on attachments
 -- create policy "Authenticated delete" on storage.objects
 --   for delete to authenticated using (bucket_id = 'attachments');
 
--- ── Companies ─────────────────────────────────────────────────
-create table if not exists companies (
-  id    uuid primary key default gen_random_uuid(),
-  name  text not null unique
-);
-
-alter table companies enable row level security;
-
-create policy "Authenticated full access on companies" on companies
-  for all to authenticated using (true) with check (true);
-
--- Seed the two required companies
-insert into companies (name) values
-  ('Twinstar Entertainers LLP'),
-  ('Twinstar Datalytiks LLP')
-on conflict (name) do nothing;
-
 -- ── Employees ─────────────────────────────────────────────────
 create table if not exists employees (
   id               uuid primary key default gen_random_uuid(),
@@ -215,6 +218,8 @@ create policy "Authenticated full access on payslips" on payslips
 
 -- ── Receipts: company association (migrations for existing deployments) ───
 -- Add company fields for per-company, financial-year-resetting receipt numbering.
+-- These ALTER TABLE statements are safe to re-run; they are no-ops when the
+-- columns already exist (e.g. on a fresh deployment using the schema above).
 alter table receipts add column if not exists company_id   uuid references companies(id);
 alter table receipts add column if not exists company_name text;
 
