@@ -9,6 +9,52 @@ let receipts    = [];
 let nextNum     = 1;
 let currentReceiptView  = null;
 let receiptAttachments  = [];
+let selectedCompanyId   = null;
+let selectedCompanyName = '';
+
+function receiptCompanyCode(companyName) {
+  const n = (companyName || '').trim().toUpperCase();
+  if (n === 'TWINSTAR DATALYTIKS LLP') return 'TSD';
+  if (n === 'TWINSTAR ENTERTAINES LLP' || n === 'TWINSTAR ENTERTAINERS LLP') return 'TSE';
+  return 'NA';
+}
+
+function currentFYStartISO() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1; // 1–12
+  const fyYear = (m >= 4) ? y : (y - 1);
+  return `${fyYear}-04-01`;
+}
+
+// ── Company dropdown ──────────────────────────────────────────────────────
+async function populateReceiptCompanyDropdown() {
+  const { data, error } = await supabaseClient.from('companies').select('id, name').order('name');
+  if (error) {
+    console.error('Failed to load companies', error);
+    showToast('Failed to load companies: ' + error.message, 'error');
+    return;
+  }
+  if (!data) return;
+  const sel = document.getElementById('receipt-company');
+  data.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.name;
+    sel.appendChild(opt);
+  });
+}
+
+function onReceiptCompanyChange() {
+  const sel = document.getElementById('receipt-company');
+  selectedCompanyId   = sel.value || null;
+  selectedCompanyName = sel.options[sel.selectedIndex]?.text || '';
+  if (selectedCompanyId) {
+    setNextReceiptNumber();
+  } else {
+    document.getElementById('receipt-number').value = '';
+  }
+}
 
 // ── Initialise ────────────────────────────────────────────────────────────
 async function initReceipts() {
@@ -19,8 +65,8 @@ async function initReceipts() {
 
   document.getElementById('receipt-date').value = todayISO();
 
+  await populateReceiptCompanyDropdown();
   await fetchReceipts();
-  await setNextReceiptNumber();
   initReceiptAttachments();
 
   // If URL has ?id=... open that receipt for viewing
@@ -51,12 +97,13 @@ function renderReceiptList() {
   }
   el.innerHTML = `<div class="table-container"><table>
     <thead><tr>
-      <th>Receipt #</th><th>Date</th><th>Customer</th><th>Phone</th>
+      <th>Receipt #</th><th>Company</th><th>Date</th><th>Customer</th><th>Phone</th>
       <th>Subtotal</th><th>Tax</th><th>Total</th><th>Actions</th>
     </tr></thead>
     <tbody>
       ${receipts.map(r => `<tr>
         <td style="font-weight:600;color:#800020;">${r.receipt_number}</td>
+        <td>${r.company_name || '—'}</td>
         <td>${formatDate(r.date)}</td>
         <td>${r.customer_name}</td>
         <td>${r.customer_phone || '—'}</td>
@@ -80,9 +127,37 @@ function renderReceiptList() {
 
 // ── Set next receipt number ───────────────────────────────────────────────
 async function setNextReceiptNumber() {
-  const { count } = await supabaseClient.from('receipts').select('*', { count: 'exact', head: true });
-  nextNum = (count || 0) + 1;
-  document.getElementById('receipt-number').value = generateRef('RCP', nextNum);
+  if (!selectedCompanyId) {
+    document.getElementById('receipt-number').value = '';
+    return;
+  }
+
+  const fyStart = currentFYStartISO();
+  const { data, error } = await supabaseClient
+    .from('receipts')
+    .select('receipt_number')
+    .eq('company_id', selectedCompanyId)
+    .gte('date', fyStart);
+
+  if (error) {
+    showToast('Failed to generate receipt number: ' + error.message, 'error');
+    return;
+  }
+
+  let maxNum = 0;
+  if (data && data.length > 0) {
+    data.forEach(r => {
+      const match = (r.receipt_number || '').match(/(\d+)$/);
+      if (match) {
+        const n = parseInt(match[1], 10);
+        if (n > maxNum) maxNum = n;
+      }
+    });
+  }
+
+  nextNum = maxNum + 1;
+  const code = receiptCompanyCode(selectedCompanyName);
+  document.getElementById('receipt-number').value = `RCP-${code}-${String(nextNum).padStart(4, '0')}`;
 }
 
 // ── Line-item management ──────────────────────────────────────────────────
@@ -157,6 +232,10 @@ async function saveReceipt() {
   const customerEmail = document.getElementById('customer-email').value.trim();
   const notes         = document.getElementById('receipt-notes').value.trim();
 
+  if (!editingId && !selectedCompanyId) {
+    showToast('Please select a company', 'warning');
+    return;
+  }
   if (!receiptNumber || !date || !customerName) {
     showToast('Please fill in all required fields', 'warning');
     return;
@@ -182,6 +261,14 @@ async function saveReceipt() {
     notes
   };
 
+  // Include company fields only when creating a new receipt.
+  // On edit, company_id and receipt_number are locked to their original values
+  // to preserve the integrity of the per-company sequence and audit trail.
+  if (!editingId) {
+    payload.company_id   = selectedCompanyId;
+    payload.company_name = selectedCompanyName;
+  }
+
   showLoading(true);
   let error;
   if (editingId) {
@@ -193,9 +280,19 @@ async function saveReceipt() {
 
   if (error) { showToast('Save failed: ' + error.message, 'error'); return; }
   showToast(editingId ? 'Receipt updated!' : 'Receipt saved!', 'success');
+
+  // Preserve the company selection across saves for a smoother workflow
+  const savedCompanyId   = selectedCompanyId;
+  const savedCompanyName = selectedCompanyName;
   resetForm();
+  if (savedCompanyId) {
+    const sel = document.getElementById('receipt-company');
+    sel.value = savedCompanyId;
+    selectedCompanyId   = savedCompanyId;
+    selectedCompanyName = savedCompanyName;
+    await setNextReceiptNumber();
+  }
   await fetchReceipts();
-  await setNextReceiptNumber();
 }
 
 // ── Reset form ────────────────────────────────────────────────────────────
@@ -205,10 +302,13 @@ function resetForm() {
   receiptAttachments = [];
   document.getElementById('receipt-form').reset();
   document.getElementById('receipt-date').value = todayISO();
+  // form.reset() resets the company select to empty; sync state accordingly
+  selectedCompanyId   = null;
+  selectedCompanyName = '';
+  document.getElementById('receipt-number').value = '';
   renderItems();
   recalcTotals();
   renderReceiptAttachments();
-  setNextReceiptNumber();
 }
 
 // ── Delete receipt ────────────────────────────────────────────────────────

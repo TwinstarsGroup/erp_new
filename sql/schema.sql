@@ -212,3 +212,23 @@ create policy "Authenticated full access on payslips" on payslips
 --
 -- create policy "Authenticated delete payslips" on storage.objects
 --   for delete to authenticated using (bucket_id = 'payslips');
+
+-- ── Receipts: company association (migrations for existing deployments) ───
+-- Add company fields for per-company, financial-year-resetting receipt numbering.
+alter table receipts add column if not exists company_id   uuid references companies(id);
+alter table receipts add column if not exists company_name text;
+
+-- Index to support per-company FY-based number queries (company_id + date).
+create index if not exists receipts_company_date_idx
+  on receipts (company_id, date);
+
+-- Replace the global unique constraint on receipt_number with a per-company
+-- unique index.  The old constraint is named receipts_receipt_number_key.
+alter table receipts drop constraint if exists receipts_receipt_number_key;
+
+-- Enforce uniqueness of receipt_number within each company.
+-- Rows with company_id IS NULL (legacy receipts without a company) are
+-- excluded from this constraint.
+create unique index if not exists receipts_company_receipt_unique
+  on receipts (company_id, receipt_number)
+  where company_id is not null;
