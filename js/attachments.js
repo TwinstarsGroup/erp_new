@@ -73,3 +73,13 @@ function renderAttachments(groupedAttachments) {
 
 // Initialize the attachments functionality on page load
 document.addEventListener('DOMContentLoaded', initAttachments);
+
+// Example when uploading from receipts.html
+await supabase.from('attachments').insert({
+    name: file.name,
+    file_path: path,
+    file_size: file.size,
+    mime_type: file.type,
+    public_url: publicUrl,
+    receipt_number: 'RCP-TSE-0001'  // Add this
+});
