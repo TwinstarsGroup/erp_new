@@ -1,4 +1,152 @@
 /**
+ * Search functionality for receipts and cash_vouchers
+ * Integrates with Supabase to search across tables
+ */
+
+// Perform search across receipts and cash_vouchers
+async function performSearch(searchTerm) {
+    // Sanitize input to prevent errors if empty
+    const term = searchTerm ? searchTerm.toString().trim() : '';
+    
+    if (!term) {
+        showToast('Please enter a search term', 'warning');
+        return;
+    }
+
+    // Show loading state in the results div
+    const resultsDiv = document.getElementById('results');
+    resultsDiv.innerHTML = `
+        <div class="empty-state" style="padding:40px;">
+            <div class="spinner" style="margin-bottom:15px;"></div>
+            <p>Searching database for "${term}"...</p>
+        </div>`;
+
+    try {
+        // 1. Search in receipts table (matches receipt_number)
+        const { data: receipts, error: receiptsError } = await supabaseClient
+            .from('receipts')
+            .select('*')
+            .ilike('receipt_number', `%${term}%`);
+
+        if (receiptsError) throw receiptsError;
+
+        // 2. Search in cash_vouchers table (matches voucher_number)
+        const { data: vouchers, error: vouchersError } = await supabaseClient
+            .from('cash_vouchers')
+            .select('*')
+            .ilike('voucher_number', `%${term}%`);
+
+        if (vouchersError) throw vouchersError;
+
+        // 3. Combine and Normalize Results for the UI
+        const combinedResults = [
+            ...(receipts || []).map(r => ({ 
+                ...r, 
+                type: 'Receipt', 
+                display_no: r.receipt_number, 
+                display_amt: r.total // Receipts use 'total'
+            })),
+            ...(vouchers || []).map(v => ({ 
+                ...v, 
+                type: 'Voucher', 
+                display_no: v.voucher_number, 
+                display_amt: v.amount // Vouchers use 'amount'
+            }))
+        ];
+
+        displayResults(combinedResults);
+
+        if (combinedResults.length === 0) {
+            showToast('No records found matching that number.', 'info');
+        } else {
+            showToast(`Found ${combinedResults.length} result(s)`, 'success');
+        }
+    } catch (error) {
+        console.error('Search error:', error);
+        showToast('Error: ' + error.message, 'error');
+        resultsDiv.innerHTML = '<div class="empty-state"><p>Error performing search.</p></div>';
+    }
+}
+
+// Display search results in a clean table with action buttons
+function displayResults(results) {
+    const resultsDiv = document.getElementById('results');
+    if (!resultsDiv) return;
+
+    if (!results || results.length === 0) {
+        resultsDiv.innerHTML = `
+            <div class="empty-state" style="padding:40px;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <h3>No results found</h3>
+                <p>Try searching for a different receipt or voucher number.</p>
+            </div>`;
+        return;
+    }
+
+    // Build the results table
+    resultsDiv.innerHTML = `
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Number</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                    <th style="text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${results.map(item => `
+                    <tr>
+                        <td>
+                            <span class="badge ${item.type.toLowerCase()}" style="padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600;">
+                                ${item.type}
+                            </span>
+                        </td>
+                        <td style="font-weight:600; color:#800020;">${item.display_no}</td>
+                        <td>${formatCurrency(item.display_amt)}</td>
+                        <td>${formatDate(item.date || item.created_at)}</td>
+                        <td style="text-align:right; display:flex; gap:8px; justify-content:flex-end;">
+                            <button class="btn btn-sm btn-outline" 
+                                onclick="window.location.href='${item.type === 'Receipt' ? 'receipts.html' : 'vouchers.html'}?id=${item.id}'">
+                                View
+                            </button>
+                            <button class="btn btn-sm btn-primary" 
+                                onclick="window.location.href='${item.type === 'Receipt' ? 'receipts.html' : 'vouchers.html'}?id=${item.id}&download=true'">
+                                Download
+                            </button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    </div>`;
+}
+
+// Initialize search page
+function initSearch() {
+    // Standard UI setup
+    if (typeof setActiveNav === 'function') setActiveNav();
+    if (typeof wireSidebarAutoClose === 'function') wireSidebarAutoClose();
+
+    const searchForm = document.getElementById('searchForm');
+    if (searchForm) {
+        searchForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            // Grabs the input value from the main search box
+            const searchInput = document.getElementById('searchInput');
+            const searchTerm = searchInput ? searchInput.value : '';
+            performSearch(searchTerm);
+        });
+    }
+}
+
+// Start initialization when the DOM is ready
+document.addEventListener('DOMContentLoaded', initSearch);
+
+
+/**
  * Search functionality for receipts and vouchers
  * Integrates with Supabase to search across tables
  
@@ -87,7 +235,7 @@ function displayResults(results) {
         `;
 
         resultsContainer.appendChild(resultItem);
-    });*/
+    });
 
 
 async function performSearch(searchTerm) {
@@ -250,3 +398,4 @@ function displayResults(results) {
         </table>
     </div>`;
 }
+*/
