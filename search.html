@@ -3,64 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Portal</title>
     <link rel="stylesheet" href="styles.css">
-    <title>Portal UI</title>
 </head>
 <body>
-    <header>
-        <h1>Portal Header</h1>
-        <nav>
-            <ul>
-                <li><a href="#">Home</a></li>
-                <li><a href="#">About</a></li>
-                <li><a href="#">Contact</a></li>
-                <li><a href="#">Search</a></li>
-            </ul>
-        </nav>
-    </header>
-
     <div class="container">
-        <aside class="sidebar">
-            <h2>Sidebar Navigation</h2>
-            <ul>
-                <li><a href="#">Dashboard</a></li>
-                <li><a href="#">Settings</a></li>
-                <li><a href="#">Profile</a></li>
-            </ul>
-        </aside>
-
-        <main class="main-content">
-            <h2>Dynamic Search</h2>
-            <input type="text" id="search-input" placeholder="Search...">
-            <ul id="search-results"></ul>
+        <header>
+            <h1>Search Portal</h1>
+        </header>
+        <main>
+            <form id="searchForm">
+                <label for="searchInput">Enter Receipt or Voucher Number:</label>
+                <input type="text" id="searchInput" placeholder="Search..." required>
+                <button type="submit">Search</button>
+            </form>
+            <div id="results"></div>
         </main>
+        <footer>
+            <p>&copy; 2026 Twinstars Group</p>
+        </footer>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-    <script>
-        const { createClient } = supabase;
-        const supabaseUrl = 'YOUR_SUPABASE_URL';
-        const supabaseKey = 'YOUR_SUPABASE_KEY';
-        const supabase = createClient(supabaseUrl, supabaseKey);
-
-        document.getElementById('search-input').addEventListener('input', async (event) => {
-            const query = event.target.value;
-            const { data, error } = await supabase
-                .from('your_table')
-                .select('*')
-                .ilike('column_name', `%${query}%`);
-
-            const resultsList = document.getElementById('search-results');
-            resultsList.innerHTML = '';
-
-            if (data) {
-                data.forEach(item => {
-                    const li = document.createElement('li');
-                    li.textContent = item.column_name; // Change column_name to match your table
-                    resultsList.appendChild(li);
-                });
-            }
-        });
-    </script>
+    <script src="script.js"></script>
 </body>
-</html>
+</html> 
+
+<script>
+const SUPABASE_URL = 'https://your-supabase-url.supabase.co';
+const SUPABASE_KEY = 'your-supabase-key';
+
+const { createClient } = supabase;
+const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+document.getElementById('searchForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const searchInput = document.getElementById('searchInput').value;
+    const { data, error } = await supabaseClient
+        .from('your_table_name')
+        .select('*')
+        .or(`receipt_number.eq.${searchInput},voucher_number.eq.${searchInput}`);
+
+    if (error) {
+        console.error('Error fetching data:', error);
+        document.getElementById('results').innerHTML = '<p>Error fetching results.</p>';
+    } else {
+        displayResults(data);
+    }
+});
+
+function displayResults(data) {
+    const resultsDiv = document.getElementById('results');
+    resultsDiv.innerHTML = '';
+    if (data.length === 0) {
+        resultsDiv.innerHTML = '<p>No results found.</p>';
+    } else {
+        data.forEach(result => {
+            resultsDiv.innerHTML += `<div class='result-item'>
+                <h2>${result.title}</h2>
+                <p>${result.description}</p>
+            </div>`;
+        });
+    }
+}
+</script>
