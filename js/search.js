@@ -1,7 +1,115 @@
 /**
  * Search functionality for receipts and cash_vouchers
- * Integrates with Supabase to search across tables
  */
+
+// 1. Core Search Function
+async function performSearch(searchTerm) {
+    const term = searchTerm ? searchTerm.toString().trim() : '';
+    
+    if (!term) {
+        showToast('Please enter a search term', 'warning');
+        return;
+    }
+
+    // Update UI to show searching state
+    const resultsDiv = document.getElementById('results');
+    resultsDiv.innerHTML = '<div style="padding:40px; text-align:center;"><div class="spinner"></div><p>Searching database...</p></div>';
+
+    try {
+        // Search in 'receipts' table
+        const { data: receipts, error: rError } = await supabaseClient
+            .from('receipts')
+            .select('*')
+            .ilike('receipt_number', `%${term}%`);
+
+        if (rError) throw rError;
+
+        // Search in 'cash_vouchers' table (Ensure name matches your Supabase)
+        const { data: vouchers, error: vError } = await supabaseClient
+            .from('cash_vouchers')
+            .select('*')
+            .ilike('voucher_number', `%${term}%`);
+
+        if (vError) throw vError;
+
+        // Combine and format for display
+        const combined = [
+            ...(receipts || []).map(r => ({ 
+                ...r, type: 'Receipt', display_no: r.receipt_number, amt: r.total 
+            })),
+            ...(vouchers || []).map(v => ({ 
+                ...v, type: 'Voucher', display_no: v.voucher_number, amt: v.amount 
+            }))
+        ];
+
+        displayResults(combined);
+    } catch (error) {
+        console.error('Search error:', error);
+        showToast('Search failed: ' + error.message, 'error');
+        resultsDiv.innerHTML = '<div class="empty-state"><p>Error connecting to database.</p></div>';
+    }
+}
+
+// 2. Display Results with View/Download Buttons
+function displayResults(results) {
+    const resultsDiv = document.getElementById('results');
+    
+    if (!results || results.length === 0) {
+        resultsDiv.innerHTML = '<div class="empty-state" style="padding:40px;"><p>No records found matching that number.</p></div>';
+        return;
+    }
+
+    resultsDiv.innerHTML = `
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Number</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                    <th style="text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${results.map(item => `
+                    <tr>
+                        <td><span class="badge ${item.type.toLowerCase()}" style="padding:4px 8px; border-radius:4px; font-size:11px; font-weight:600;">${item.type}</span></td>
+                        <td style="font-weight:600;">${item.display_no}</td>
+                        <td>${formatCurrency(item.amt)}</td>
+                        <td>${formatDate(item.date || item.created_at)}</td>
+                        <td style="text-align:right; display:flex; gap:8px; justify-content:flex-end;">
+                            <button class="btn btn-sm btn-outline" onclick="location.href='${item.type === 'Receipt' ? 'receipts.html' : 'vouchers.html'}?id=${item.id}'">View</button>
+                            <button class="btn btn-sm btn-primary" onclick="location.href='${item.type === 'Receipt' ? 'receipts.html' : 'vouchers.html'}?id=${item.id}&download=true'">Download</button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    </div>`;
+}
+
+// 3. Form Initialization
+function initSearch() {
+    const searchForm = document.getElementById('searchForm');
+    if (searchForm) {
+        // Intercept form submission
+        searchForm.addEventListener('submit', (e) => {
+            e.preventDefault(); 
+            const input = document.getElementById('searchInput');
+            performSearch(input ? input.value : '');
+        });
+    }
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', initSearch);
+
+
+/**
+ * Search functionality for receipts and cash_vouchers
+ * Integrates with Supabase to search across tables
+ 
 
 // Perform search across receipts and cash_vouchers
 async function performSearch(searchTerm) {
