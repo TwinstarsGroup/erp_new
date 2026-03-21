@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt and Voucher Search</title>
+    <script>
+        // Sample data: Replace this with actual data retrieval logic
+        const files = [
+            { name: 'voucher_123.pdf', number: '123' },
+            { name: 'receipt_456.pdf', number: '456' },
+            { name: 'voucher_789.pdf', number: '789' }
+        ];
+
+        function searchFiles() {
+            const input = document.getElementById('searchInput').value;
+            const results = document.getElementById('results');
+            results.innerHTML = ''; // Clear previous results
+
+            const filteredFiles = files.filter(file => file.number.includes(input));
+
+            filteredFiles.forEach(file => {
+                const div = document.createElement('div');
+                const link = document.createElement('a');
+                link.href = file.name; // Assuming files are hosted in the same directory
+                link.innerText = file.name;
+                link.download = file.name;
+                div.appendChild(link);
+                results.appendChild(div);
+            });
+            
+            if (filteredFiles.length === 0) {
+                results.innerHTML = 'No matching files found.';
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Search for Receipts and Vouchers</h1>
+    <input type="text" id="searchInput" placeholder="Enter receipt/voucher number" />
+    <button onclick="searchFiles()">Search</button>
+
+    <h2>Results:</h2>
+    <div id="results"></div>
+</body>
+</html>
