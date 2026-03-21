@@ -1,6 +1,166 @@
 /**
- * Search functionality for receipts and cash_vouchers
+ * Search functionality for Twinstar Group ERP
+ * Searches Receipts, Cash Vouchers, and associated Attachments
  */
+
+// 1. Core Search Function
+async function performSearch(searchTerm) {
+    const term = searchTerm ? searchTerm.toString().trim() : '';
+    
+    if (!term) {
+        showToast('Please enter a search term', 'warning');
+        return;
+    }
+
+    const resultsDiv = document.getElementById('results');
+    // Show searching state
+    resultsDiv.innerHTML = `
+        <div class="empty-state" style="padding:60px;">
+            <div class="spinner" style="margin-bottom:20px;"></div>
+            <p style="color:#64748b;">Searching database for "${term}"...</p>
+        </div>`;
+
+    try {
+        // A. Search in 'receipts' table
+        const { data: receipts, error: rError } = await supabaseClient
+            .from('receipts')
+            .select('*')
+            .ilike('receipt_number', `%${term}%`);
+
+        if (rError) throw rError;
+
+        // B. Search in 'cash_vouchers' table
+        const { data: vouchers, error: vError } = await supabaseClient
+            .from('cash_vouchers')
+            .select('*')
+            .ilike('voucher_number', `%${term}%`);
+
+        if (vError) throw vError;
+
+        // C. Combine and normalize results
+        const combined = [
+            ...(receipts || []).map(r => ({ 
+                ...r, type: 'Receipt', display_no: r.receipt_number, amt: r.total 
+            })),
+            ...(vouchers || []).map(v => ({ 
+                ...v, type: 'Voucher', display_no: v.voucher_number, amt: v.amount 
+            }))
+        ];
+
+        displayResults(combined);
+
+    } catch (error) {
+        console.error('Search error:', error);
+        showToast('Search failed: ' + error.message, 'error');
+        resultsDiv.innerHTML = '<div class="empty-state"><p>Error connecting to database.</p></div>';
+    }
+}
+
+// 2. Fetch Attachments for a specific Record
+async function getAttachments(recordId) {
+    try {
+        const { data, error } = await supabaseClient
+            .from('attachments')
+            .select('*')
+            .eq('record_id', recordId); // Assumes record_id links to the Receipt/Voucher ID
+
+        if (error) throw error;
+        return data || [];
+    } catch (err) {
+        console.error('Attachment error:', err);
+        return [];
+    }
+}
+
+// 3. Render Results Table
+function displayResults(results) {
+    const resultsDiv = document.getElementById('results');
+    
+    if (!results || results.length === 0) {
+        resultsDiv.innerHTML = `
+            <div class="empty-state" style="padding:60px;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <h3>No records found</h3>
+                <p>Check the number and try again.</p>
+            </div>`;
+        return;
+    }
+
+    resultsDiv.innerHTML = `
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Number</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                    <th>Files</th>
+                    <th style="text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${results.map(item => `
+                    <tr>
+                        <td><span class="badge ${item.type.toLowerCase()}" style="padding:4px 8px; border-radius:4px; font-size:11px; font-weight:600;">${item.type}</span></td>
+                        <td style="font-weight:600; color:#800020;">${item.display_no}</td>
+                        <td>${formatCurrency(item.amt)}</td>
+                        <td>${formatDate(item.date || item.created_at)}</td>
+                        <td>
+                            <div id="attach-list-${item.id}" style="font-size:12px; color:#94a3b8;">
+                                Loading files...
+                            </div>
+                        </td>
+                        <td style="text-align:right; display:flex; gap:8px; justify-content:flex-end;">
+                            <button class="btn btn-sm btn-outline" onclick="location.href='${item.type === 'Receipt' ? 'receipts.html' : 'vouchers.html'}?id=${item.id}'">View</button>
+                            <button class="btn btn-sm btn-primary" onclick="location.href='${item.type === 'Receipt' ? 'receipts.html' : 'vouchers.html'}?id=${item.id}&download=true'">Download</button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    </div>`;
+
+    // 4. Post-render: Load Attachments for each row
+    results.forEach(async (item) => {
+        const files = await getAttachments(item.id);
+        const container = document.getElementById(`attach-list-${item.id}`);
+        
+        if (files && files.length > 0) {
+            container.innerHTML = files.map(f => `
+                <a href="${f.file_url}" target="_blank" style="color:#800020; text-decoration:underline; display:block;">
+                    ${f.file_name || 'View Attachment'}
+                </a>
+            `).join('');
+        } else {
+            container.innerHTML = '<span style="color:#cbd5e1;">None</span>';
+        }
+    });
+}
+
+// 5. Page Initialization
+function initSearch() {
+    // Standard Sidebar/UI logic
+    if (typeof setActiveNav === 'function') setActiveNav();
+    if (typeof wireSidebarAutoClose === 'function') wireSidebarAutoClose();
+
+    const searchForm = document.getElementById('searchForm');
+    if (searchForm) {
+        searchForm.addEventListener('submit', (e) => {
+            e.preventDefault(); // Stop page reload
+            const input = document.getElementById('searchInput');
+            if (input) performSearch(input.value);
+        });
+    }
+}
+
+// Listen for DOM ready
+document.addEventListener('DOMContentLoaded', initSearch);
+
+
+/**
+ * Search functionality for receipts and cash_vouchers
+ 
 
 // 1. Core Search Function
 async function performSearch(searchTerm) {
