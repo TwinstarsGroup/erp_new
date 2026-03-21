@@ -204,3 +204,49 @@ function initSearch() {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', initSearch);
+
+
+// Function to handle View/Download actions
+function handleAction(type, id, action) {
+    // Maps 'Receipt' to 'receipts.html' and 'Voucher' to 'vouchers.html'
+    const page = type === 'Receipt' ? 'receipts.html' : 'vouchers.html';
+    
+    // Redirects with parameters so the target page knows what to load
+    window.location.href = `${page}?id=${id}&mode=${action}`;
+}
+
+// Updated Display Logic to include buttons
+function displayResults(results) {
+    const resultsDiv = document.getElementById('results');
+    if (results.length === 0) {
+        resultsDiv.innerHTML = '<div class="empty-state"><p>No results found.</p></div>';
+        return;
+    }
+
+    resultsDiv.innerHTML = `
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Number</th>
+                    <th>Date</th>
+                    <th style="text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${results.map(item => `
+                    <tr>
+                        <td><span class="badge ${item.type.toLowerCase()}">${item.type}</span></td>
+                        <td style="font-weight:600;">${item.type === 'Receipt' ? item.receipt_number : item.voucher_number}</td>
+                        <td>${formatDate(item.date || item.created_at)}</td>
+                        <td style="text-align:right;">
+                            <button class="btn btn-sm btn-outline" onclick="handleAction('${item.type}', '${item.id}', 'view')">View</button>
+                            <button class="btn btn-sm btn-primary" onclick="handleAction('${item.type}', '${item.id}', 'download')">Download</button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    </div>`;
+}
