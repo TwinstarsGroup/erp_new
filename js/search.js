@@ -56,20 +56,55 @@ async function performSearch(searchTerm) {
     }
 }
 
-// 2. Fetch Attachments for a specific Record
-async function getAttachments(recordId) {
+// 1. Fetch Attachments using receipt_number or voucher_number
+async function getAttachments(type, recordNumber) {
     try {
+        const column = type === 'Receipt' ? 'receipt_number' : 'voucher_number'; //
+        
         const { data, error } = await supabaseClient
-            .from('attachments')
+            .from('attachments') //
             .select('*')
-            .eq('record_id', recordId); // Assumes record_id links to the Receipt/Voucher ID
+            .eq(column, recordNumber); // Matches the 'RCP-TSE...' or 'CVR-TSE...' string
 
         if (error) throw error;
         return data || [];
     } catch (err) {
-        console.error('Attachment error:', err);
+        console.error('Attachment fetch error:', err);
         return [];
     }
+}
+
+// 2. Updated Display Logic for Attachments
+function displayResults(results) {
+    const resultsDiv = document.getElementById('results');
+    // ... (rest of table header code remains same as previous full version)
+
+    // Inside the results.map loop:
+    // Change the ID of the file container to use the display number
+    /*
+    <td>
+        <div id="attach-list-${item.display_no}" style="font-size:12px;">
+            Loading...
+        </div>
+    </td>
+    */
+
+    // 3. Post-render: Load files using the record number
+    results.forEach(async (item) => {
+        const files = await getAttachments(item.type, item.display_no); //
+        const container = document.getElementById(`attach-list-${item.display_no}`);
+        
+        if (files && files.length > 0) {
+            container.innerHTML = files.map(f => `
+                <a href="${f.public_url}" target="_blank" style="color:#800020; text-decoration:underline; display:block; margin-bottom:4px;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:4px;"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                    ${f.name || 'View File'}
+                </a>
+            `).join('');
+        } else {
+            container.innerHTML = '<span style="color:#cbd5e1;">No files</span>';
+        }
+    });
 }
 
 // 3. Render Results Table
